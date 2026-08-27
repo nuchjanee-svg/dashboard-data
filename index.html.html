@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nurse Master Workforce Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      --ink: #102033;
+      --muted: #5f6f83;
+      --line: #d9e2ec;
+      --paper: #f7fafc;
+      --surface: #ffffff;
+      --navy: #0b2545;
+      --teal: #0f8b8d;
+      --aqua: #32c7c9;
+      --green: #17a673;
+      --lime: #a3d977;
+      --gold: #f5b841;
+      --coral: #f26b5e;
+      --rose: #e0527d;
+      --blue: #2f80ed;
+      --violet: #7c5cff;
+      --shadow: 0 14px 32px rgba(16, 32, 51, 0.10);
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: Arial, "Tahoma", sans-serif;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, #eef7fb 0, #f9fbfd 240px, #f7fafc 100%);
+      letter-spacing: 0;
+    }
+    button, input, select { font: inherit; }
+    .app-shell { min-height: 100vh; }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: rgba(255,255,255,0.92);
+      border-bottom: 1px solid rgba(217,226,236,0.9);
+      backdrop-filter: blur(14px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 280px; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 8px;
+      display: grid; place-items: center;
+      color: #fff; font-weight: 800; letter-spacing: 0;
+      background: linear-gradient(135deg, var(--teal), var(--blue) 52%, var(--coral));
+      box-shadow: 0 10px 22px rgba(15, 139, 141, .24);
+    }
+    .brand h1 { margin: 0; font-size: 19px; line-height: 1.1; color: var(--navy); }
+    .brand p { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+    .top-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      box-shadow: 0 1px 0 rgba(16,32,51,0.04);
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(16,32,51,.10); border-color: #b8c8d8; }
+    .btn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .btn.accent { background: var(--teal); color: #fff; border-color: var(--teal); }
+    .btn.warn { background: #fff8eb; border-color: #f3d08b; color: #6f4b00; }
+    .btn.danger { background: #fff1f2; border-color: #f2a8b3; color: #9f1239; }
+    .btn:disabled { opacity: .48; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .layout {
+      display: grid;
+      grid-template-columns: 320px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+    .filters {
+      position: sticky;
+      top: 75px;
+      align-self: start;
+      max-height: calc(100vh - 92px);
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .filters-header {
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .filters-header h2 { margin: 0; font-size: 15px; color: var(--navy); }
+    .filter-body { padding: 14px; display: grid; gap: 12px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 12px; font-weight: 700; color: #34465c; }
+    .field input, .field select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      min-height: 36px;
+      padding: 7px 9px;
+      outline: none;
+    }
+    .field select[multiple] { min-height: 78px; padding: 6px; }
+    .field input:focus, .field select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15,139,141,.12); }
+    .range-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .content { display: grid; gap: 16px; min-width: 0; }
+    .status-band {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(90deg, #ffffff, #edfdfa);
+      box-shadow: var(--shadow);
+    }
+    .status-band strong { color: var(--navy); }
+    .status-text { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .data-badges { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .badge {
+      border-radius: 8px;
+      padding: 7px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .badge.teal { border-color: #a6e4df; background: #e9fbf8; color: #006d68; }
+    .badge.gold { border-color: #f5d58f; background: #fff8e8; color: #7a5100; }
+    .badge.rose { border-color: #f4b8c9; background: #fff0f5; color: #98214d; }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .kpi {
+      min-height: 112px;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 20px rgba(16,32,51,.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 5px;
+      background: var(--accent, var(--teal));
+    }
+    .kpi .label { font-size: 12px; color: var(--muted); font-weight: 700; }
+    .kpi .value { margin-top: 8px; font-size: 26px; line-height: 1; font-weight: 800; color: var(--navy); }
+    .kpi .sub { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.35; }
+    .chart-grid { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 12px; }
+    .panel {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 20px rgba(16,32,51,.08);
+      min-width: 0;
+    }
+    .panel-head {
+      min-height: 44px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .panel-head h3 { margin: 0; font-size: 14px; color: var(--navy); }
+    .panel-body { padding: 14px; }
+    canvas { display: block; width: 100%; height: 270px; }
+    .tabs {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .tab {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: grid; gap: 14px; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .table-toolbar .left, .table-toolbar .right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 12px;
+      min-width: 860px;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      border-right: 1px solid #edf2f7;
+      vertical-align: middle;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #0f766e;
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    th.row-select, td.row-select {
+      position: sticky;
+      left: 0;
+      width: 42px;
+      min-width: 42px;
+      max-width: 42px;
+      text-align: center;
+      z-index: 5;
+      cursor: default;
+    }
+    td.row-select { background: #fff; }
+    tr:nth-child(even) td.row-select { background: #fbfdff; }
+    td.num, th.num { text-align: right; }
+    tr:nth-child(even) td { background: #fbfdff; }
+    tr:hover td { background: #f0fbfa; }
+    td.editable-cell {
+      background: #fffbeb;
+      cursor: text;
+      outline: none;
+    }
+    td.editable-cell:focus {
+      background: #fff7cc;
+      box-shadow: inset 0 0 0 2px var(--gold);
+    }
+    tr.row-selected td { background: #e8fbff; }
+    .edit-status {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .caption {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .insights {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .insight {
+      border: 1px solid var(--line);
+      border-left: 5px solid var(--accent, var(--teal));
+      border-radius: var(--radius);
+      background: #fff;
+      padding: 12px;
+      min-height: 86px;
+    }
+    .insight strong { display: block; margin-bottom: 6px; color: var(--navy); }
+    .insight span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .google-grid {
+      display: grid;
+      grid-template-columns: 1.5fr .7fr .7fr auto auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .log {
+      border: 1px solid var(--line);
+      background: #0e1726;
+      color: #d6f4ef;
+      border-radius: 8px;
+      min-height: 86px;
+      padding: 10px;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      overflow: auto;
+    }
+    .empty {
+      padding: 22px;
+      color: var(--muted);
+      text-align: center;
+      border: 1px dashed #b8c8d8;
+      border-radius: var(--radius);
+      background: #fbfdff;
+    }
+    @media (max-width: 1280px) {
+      .layout { grid-template-columns: 1fr; }
+      .filters { position: static; max-height: none; }
+      .kpi-grid { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+      .chart-grid, .two-col, .insights { grid-template-columns: 1fr; }
+      .google-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 720px) {
+      .topbar, .status-band { grid-template-columns: 1fr; display: grid; }
+      .top-actions, .data-badges { justify-content: stretch; }
+      .btn { justify-content: center; flex: 1 1 auto; }
+      .layout { padding: 10px; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .google-grid { grid-template-columns: 1fr; }
+      .brand h1 { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">NW</div>
+        <div>
+          <h1>Nurse_Master Workforce Dashboard</h1>
+          <p>OPD nursing workforce intelligence</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <input id="fileInput" type="file" accept=".xlsx,.xls" hidden />
+        <button class="btn primary" id="importBtn" title="นำเข้าไฟล์ Excel"><i data-lucide="file-up"></i><span>นำเข้า Excel</span></button>
+        <button class="btn accent" id="exportXlsxBtn" title="ส่งออกข้อมูลเป็น Excel"><i data-lucide="download"></i><span>ส่งออก Excel</span></button>
+        <button class="btn" id="exportCsvBtn" title="ส่งออกข้อมูลเป็น CSV"><i data-lucide="table"></i><span>CSV</span></button>
+        <button class="btn" id="exportJsonBtn" title="ส่งออกข้อมูลเป็น JSON"><i data-lucide="braces"></i><span>JSON</span></button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="filters">
+        <div class="filters-header">
+          <h2>ตัวกรองครบทุกมิติ</h2>
+          <button class="btn" id="resetFiltersBtn" title="ล้างตัวกรอง"><i data-lucide="rotate-ccw"></i><span>ล้าง</span></button>
+        </div>
+        <div class="filter-body">
+          <div class="field"><label for="globalSearch">ค้นหาทุกคอลัมน์</label><input id="globalSearch" type="search" /></div>
+          <div class="range-grid">
+            <div class="field"><label for="idSearch">Nurse_ID</label><input id="idSearch" type="search" /></div>
+            <div class="field"><label for="nameSearch">ชื่อ-สกุล</label><input id="nameSearch" type="search" /></div>
+          </div>
+          <div id="categoricalFilters"></div>
+          <div class="range-grid">
+            <div class="field"><label>อายุ ต่ำสุด</label><input id="ageMin" type="number" /></div>
+            <div class="field"><label>อายุ สูงสุด</label><input id="ageMax" type="number" /></div>
+            <div class="field"><label>อายุงาน ต่ำสุด</label><input id="tenureMin" type="number" /></div>
+            <div class="field"><label>อายุงาน สูงสุด</label><input id="tenureMax" type="number" /></div>
+            <div class="field"><label>FTE ต่ำสุด</label><input id="fteMin" type="number" step="0.01" /></div>
+            <div class="field"><label>FTE สูงสุด</label><input id="fteMax" type="number" step="0.01" /></div>
+            <div class="field"><label>OT ต่ำสุด</label><input id="otMin" type="number" /></div>
+            <div class="field"><label>OT สูงสุด</label><input id="otMax" type="number" /></div>
+            <div class="field"><label>วันลา ต่ำสุด</label><input id="leaveMin" type="number" /></div>
+            <div class="field"><label>วันลา สูงสุด</label><input id="leaveMax" type="number" /></div>
+            <div class="field"><label>อบรม ต่ำสุด</label><input id="trainingMin" type="number" /></div>
+            <div class="field"><label>อบรม สูงสุด</label><input id="trainingMax" type="number" /></div>
+            <div class="field"><label>เริ่มงาน จากวันที่</label><input id="startFrom" type="date" /></div>
+            <div class="field"><label>เริ่มงาน ถึงวันที่</label><input id="startTo" type="date" /></div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="content">
+        <section class="status-band">
+          <div class="status-text" id="sourceStatus"></div>
+          <div class="data-badges">
+            <span class="badge teal" id="filteredBadge">0 รายการ</span>
+            <span class="badge gold" id="fteBadge">0 FTE</span>
+            <span class="badge rose" id="riskBadge">0 ความเสี่ยง</span>
+          </div>
+        </section>
+
+        <section class="kpi-grid" id="kpiGrid"></section>
+
+        <section class="chart-grid">
+          <div class="panel">
+            <div class="panel-head"><h3>กำลังคนรายหน่วยงาน</h3><span class="badge teal" id="deptCountBadge"></span></div>
+            <div class="panel-body"><canvas id="deptChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Competency</h3><span class="badge gold" id="compRateBadge"></span></div>
+            <div class="panel-body"><canvas id="competencyChart"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>ประเด็นความเสี่ยง</h3><span class="badge rose" id="riskCountBadge"></span></div>
+            <div class="panel-body"><canvas id="riskChart"></canvas></div>
+          </div>
+        </section>
+
+        <nav class="tabs" id="tabs">
+          <button class="tab active" data-tab="overview">ภาพรวม</button>
+          <button class="tab" data-tab="department">หน่วยงาน</button>
+          <button class="tab" data-tab="workforce">มิติบุคลากร</button>
+          <button class="tab" data-tab="risk">ความเสี่ยง</button>
+          <button class="tab" data-tab="data">ข้อมูลทั้งหมด</button>
+          <button class="tab" data-tab="google">Google Sheet</button>
+        </nav>
+
+        <section id="tab-overview" class="tab-panel active">
+          <div class="insights" id="insights"></div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-head"><h3>ตัวชี้วัดหลัก</h3></div>
+              <div class="panel-body"><div class="table-wrap"><table id="metricsTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: ตัวชี้วัดนี้คำนวณจากข้อมูลที่ผ่านตัวกรองปัจจุบันโดยไม่ตัดคอลัมน์ต้นทางออก</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>คุณภาพข้อมูล</h3></div>
+              <div class="panel-body"><div class="table-wrap"><table id="qualityTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: ใช้ตรวจความครบถ้วนของ Nurse_ID, ชื่อซ้ำ, ค่าว่าง และช่วงวันที่เริ่มงาน</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-department" class="tab-panel">
+          <div class="panel">
+            <div class="panel-head"><h3>สรุปรายหน่วยงานครบทุกหน่วย</h3></div>
+            <div class="panel-body"><div class="table-wrap"><table id="departmentTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: ตารางนี้แสดงกำลังคน, FTE, RN/PN, อายุ, อายุงาน, OT, วันลา, อบรม, Competency และ risk flags รายหน่วยงาน</div></div>
+          </div>
+        </section>
+
+        <section id="tab-workforce" class="tab-panel">
+          <div class="panel">
+            <div class="panel-head"><h3>สรุปตามมิติบุคลากรครบทุกประเด็น</h3></div>
+            <div class="panel-body"><div class="table-wrap"><table id="categoryTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: ตารางนี้รวมเพศ, ตำแหน่ง, ประเภทการจ้าง, ทักษะหลัก, วิชาชีพ, สถานะ, ใบรับรอง, Competency, ช่วงอายุ, ช่วงอายุงาน, ช่วง OT และช่วง FTE</div></div>
+          </div>
+        </section>
+
+        <section id="tab-risk" class="tab-panel">
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-head"><h3>Risk flags และข้อเสนอ</h3></div>
+              <div class="panel-body"><div class="table-wrap"><table id="riskFlagsTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: ตารางนี้ใช้เกณฑ์อายุ 55+, OT > 30, วันลา >= 3, FTE < 1.0, Competency ยังไม่ผ่าน และไม่มีวันอบรม</div></div>
+            </div>
+            <div class="panel">
+              <div class="panel-head"><h3>คะแนนความเสี่ยงรายหน่วยงาน</h3></div>
+              <div class="panel-body"><div class="table-wrap"><table id="riskDeptTable"></table></div><div class="caption">คำบรรยายใต้ตาราง: คะแนนรวมคือจำนวนบุคลากรที่เข้าเกณฑ์ risk flags หลักในแต่ละหน่วยงาน</div></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-data" class="tab-panel">
+          <div class="panel">
+            <div class="panel-head"><h3>Nurse_Master ทุกคอลัมน์</h3><span class="badge teal" id="rawCountBadge"></span></div>
+            <div class="panel-body">
+              <div class="table-toolbar">
+                <div class="left">
+                  <select id="pageSize"><option value="25">25 แถว</option><option value="50">50 แถว</option><option value="100">100 แถว</option><option value="all" selected>ทั้งหมด</option></select>
+                  <span class="status-text" id="pageInfo"></span>
+                </div>
+                <div class="right">
+                  <span class="edit-status" id="editStatus">โหมดอ่านอย่างเดียว</span>
+                  <button class="btn primary" id="editModeBtn"><i data-lucide="pencil"></i><span>แก้ไขข้อมูล</span></button>
+                  <button class="btn accent" id="addRowBtn" disabled><i data-lucide="plus"></i><span>เพิ่มแถว</span></button>
+                  <button class="btn danger" id="deleteRowsBtn" disabled><i data-lucide="trash-2"></i><span>ลบที่เลือก</span></button>
+                  <button class="btn" id="saveEditsBtn" disabled><i data-lucide="refresh-cw"></i><span>อัปเดต Dashboard</span></button>
+                  <button class="btn" id="prevPage"><i data-lucide="chevron-left"></i><span>ก่อนหน้า</span></button>
+                  <button class="btn" id="nextPage"><span>ถัดไป</span><i data-lucide="chevron-right"></i></button>
+                </div>
+              </div>
+              <div class="table-wrap"><table id="rawTable"></table></div>
+              <div class="caption">คำบรรยายใต้ตาราง: ตารางนี้คงคอลัมน์ต้นทางทั้งหมด 18 คอลัมน์ และแสดงทุกแถวตามตัวกรองโดยเลือกจำนวนแถวต่อหน้าได้</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="tab-google" class="tab-panel">
+          <div class="panel">
+            <div class="panel-head"><h3>Google Sheet Connection</h3><span class="badge gold" id="gasStatus">ยังไม่เชื่อมต่อ</span></div>
+            <div class="panel-body">
+              <div class="google-grid">
+                <div class="field"><label>GAS Web App URL</label><input id="gasUrl" type="url" value="https://script.google.com/macros/s/AKfycbyigYKmlMeWLayftbu6u3zXiY-n4SVGeiOavASb8-60FV8rz4qJvkrfxXk9evBpvSeV/exec" /></div>
+                <div class="field"><label>Sheet name</label><input id="gasSheet" type="text" value="Nurse_Master" /></div>
+                <div class="field"><label>Token</label><input id="gasToken" type="password" /></div>
+                <button class="btn" id="saveGasBtn"><i data-lucide="save"></i><span>บันทึก</span></button>
+                <button class="btn accent" id="loadGasBtn"><i data-lucide="cloud-download"></i><span>โหลด</span></button>
+                <button class="btn warn" id="pushGasBtn"><i data-lucide="cloud-upload"></i><span>ส่งทั้งหมดไป Sheet</span></button>
+              </div>
+              <div style="height:10px"></div>
+              <div class="log" id="gasLog"></div>
+              <iframe name="gasPostFrame" id="gasPostFrame" hidden></iframe>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const INITIAL_PAYLOAD = {"metadata":{"source_file":"C:\\Users\\wisul\\Documents\\data\\Nursing_Workforce_OPD_Large_Sample.xlsx","sheet":"Nurse_Master","generated_at":"2026-08-27T14:59:25","current_date":"2026-08-27","rows":220,"columns":18},"headers":["Nurse_ID","ชื่อ-สกุล","เพศ","อายุ","หน่วยงาน","ตำแหน่ง","ประเภทการจ้าง","วันที่เริ่มงาน","อายุงาน(ปี)","FTE","ทักษะหลัก","วิชาชีพ","สถานะ","OT_ชม./เดือน","วันลา/เดือน","อบรม_วัน/เดือน","ใบรับรอง","Competency"],"rows":[["N0001","พรทิพย์ ชัยมงคล","หญิง",27,"อายุรกรรมหญิง","พยาบาลวิชาชีพชำนาญการพิเศษ","พนักงานกระทรวงสาธารณสุข","2021-05-12",5,1,"Pediatric","RN","ปฏิบัติงาน",32,3,1,"BLS+ACLS","ผ่าน"],["N0002","ศิริพร รัตนชัย","หญิง",55,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","1996-03-24",30,1,"OR","RN","ปฏิบัติงาน",38,3,0,"BLS","ผ่าน"],["N0003","วาสนา วีระวงศ์","หญิง",25,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","2026-04-16",0,1,"Dialysis","PN","ปฏิบัติงาน",31,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0004","วราภรณ์ ใจดี","หญิง",46,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2005-05-31",21,1,"Pediatric","RN","ปฏิบัติงาน",35,0,2,"BLS+PALS","ผ่าน"],["N0005","กัญญาณัฐ บุญมี","หญิง",35,"OR","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2013-04-20",13,1,"ER","PN","ปฏิบัติงาน",38,3,0,"BLS+PALS","ผ่าน"],["N0006","กิตติยา ชัยมงคล","หญิง",47,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2003-06-16",23,1,"OR","RN","ปฏิบัติงาน",20,1,1,"BLS+ACLS+PALS","รอประเมิน"],["N0007","อัญชลี ศรีสวัสดิ์","หญิง",56,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1994-12-10",31,1,"OR","RN","ปฏิบัติงาน",6,1,3,"BLS+PALS","ผ่าน"],["N0008","พรทิพย์ ทองดี","หญิง",43,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2008-05-10",18,1,"NCD","RN","ปฏิบัติงาน",17,4,0,"BLS","ผ่าน"],["N0009","พิมพ์ชนก ชัยมงคล","หญิง",55,"อายุรกรรมหญิง","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1995-09-20",30,1,"Pediatric","RN","ปฏิบัติงาน",11,2,1,"BLS+ACLS+PALS","ผ่าน"],["N0010","ณัฐวดี เพชรงาม","หญิง",39,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2012-08-14",13,0.5,"Maternal","RN","ปฏิบัติงาน",3,1,0,"BLS+PALS","ผ่าน"],["N0011","วรรณภา คำแสน","หญิง",58,"อายุรกรรมชาย","ผู้ช่วยพยาบาล","ข้าราชการ","1994-11-11",31,1,"Pediatric","RN","ปฏิบัติงาน",31,2,1,"BLS+PALS","ผ่าน"],["N0012","วาสนา ทองแท้","หญิง",34,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2015-11-15",10,1,"NCD","RN","ลาศึกษา",29,1,1,"BLS","ผ่าน"],["N0013","อรทัย สุขใจ","หญิง",37,"ER","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2016-06-08",10,1,"Pediatric","RN","ปฏิบัติงาน",16,2,2,"BLS+ACLS+PALS","ผ่าน"],["N0014","ณัฐวดี มงคลดี","หญิง",25,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","2025-10-18",0,1,"ER","PN","ลาศึกษา",21,0,3,"BLS+ACLS","ผ่าน"],["N0015","อัญชลี แสงทอง","หญิง",29,"สูติ-นรีเวช","ผู้ช่วยพยาบาล","ข้าราชการ","2020-06-04",6,1,"Dialysis","RN","ปฏิบัติงาน",8,0,3,"BLS+ACLS+PALS","รอประเมิน"],["N0016","เกศรินทร์ แสงทอง","หญิง",50,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","1997-12-04",28,1,"OR","PN","ปฏิบัติงาน",1,4,1,"BLS+ACLS","ผ่าน"],["N0017","เกศรินทร์ สมบูรณ์","หญิง",39,"ศัลยกรรม","ผู้ช่วยพยาบาล","ข้าราชการ","2010-12-16",15,1,"ICU","RN","ลาศึกษา",8,0,0,"BLS","รอประเมิน"],["N0018","วรรณภา ชัยมงคล","หญิง",53,"ER","ผู้ช่วยพยาบาล","ข้าราชการ","1997-11-29",28,1,"Pediatric","RN","ลาศึกษา",24,3,2,"BLS","ผ่าน"],["N0019","อัญชลี สมบูรณ์","หญิง",49,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2001-04-20",25,1,"NCD","RN","ลาศึกษา",8,0,1,"BLS+ACLS+PALS","ผ่าน"],["N0020","วราภรณ์ ศรีสุข","หญิง",37,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","พนักงานราชการ","2016-01-27",10,1,"NCD","RN","ปฏิบัติงาน",15,4,2,"BLS","รอประเมิน"],["N0021","วราภรณ์ พูนทรัพย์","หญิง",45,"อายุรกรรมหญิง","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2005-02-07",21,1,"ER","RN","ปฏิบัติงาน",31,1,3,"BLS","ผ่าน"],["N0022","พรทิพย์ ทองดี","หญิง",56,"OR","พยาบาลวิชาชีพ","ข้าราชการ","1997-05-09",29,1,"ทั่วไป","RN","ปฏิบัติงาน",18,3,2,"BLS+PALS","รอประเมิน"],["N0023","ภัทรวดี ศรีสุข","หญิง",31,"ER","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2022-05-08",4,0.75,"OR","RN","ปฏิบัติงาน",6,3,0,"BLS","ผ่าน"],["N0024","กิตติยา สุขใจ","หญิง",36,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2013-01-26",13,1,"Maternal","RN","ลาศึกษา",6,4,0,"BLS+PALS","ผ่าน"],["N0025","ภัทรวดี บุญมี","หญิง",44,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2006-10-02",19,1,"NCD","RN","ลาศึกษา",17,4,1,"BLS+ACLS+PALS","ผ่าน"],["N0026","สุพัตรา ทองแท้","หญิง",42,"OPD","พยาบาลวิชาชีพ","พนักงานราชการ","2007-03-22",19,1,"NCD","RN","ปฏิบัติงาน",0,3,3,"BLS+ACLS+PALS","ผ่าน"],["N0027","ธนพร สมบูรณ์","หญิง",39,"กุมารเวชกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2014-08-04",12,1,"Maternal","RN","ปฏิบัติงาน",1,2,2,"BLS+ACLS","รอประเมิน"],["N0028","ธนพร รัตนชัย","ชาย",23,"OR","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2026-05-20",0,1,"Dialysis","RN","ลาศึกษา",7,1,1,"BLS+PALS","รอประเมิน"],["N0029","กัญญาณัฐ รัตนชัย","หญิง",24,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2026-05-24",0,1,"Pediatric","PN","ปฏิบัติงาน",29,2,1,"BLS+PALS","ผ่าน"],["N0030","พิมพ์ชนก วัฒนชัย","หญิง",54,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","1995-04-21",31,1,"ER","RN","ปฏิบัติงาน",0,2,1,"BLS","ผ่าน"],["N0031","พิมพ์ชนก ทองแท้","หญิง",43,"OPD","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2006-02-21",20,1,"Pediatric","RN","ปฏิบัติงาน",32,1,0,"BLS","รอประเมิน"],["N0032","กิตติยา ทองแท้","หญิง",33,"ER","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2017-01-20",9,1,"ทั่วไป","RN","ปฏิบัติงาน",12,4,2,"BLS+ACLS+PALS","ผ่าน"],["N0033","สุภาวดี มงคลดี","หญิง",43,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","2009-02-13",17,1,"NCD","RN","ลาศึกษา",33,1,2,"BLS+PALS","ผ่าน"],["N0034","พิมพ์ชนก คำแสน","หญิง",38,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2010-10-03",15,1,"OR","PN","ปฏิบัติงาน",10,4,3,"BLS+ACLS","ผ่าน"],["N0035","อัญชลี พูนทรัพย์","หญิง",37,"ศัลยกรรม","ผู้ช่วยพยาบาล","ข้าราชการ","2015-10-02",10,1,"Maternal","RN","ลาศึกษา",38,3,3,"BLS","ผ่าน"],["N0036","นภัสสร แสงทอง","หญิง",58,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1991-05-02",35,1,"Pediatric","RN","ปฏิบัติงาน",7,2,0,"BLS","ผ่าน"],["N0037","ภัทรวดี ทองแท้","หญิง",58,"ER","พยาบาลวิชาชีพ","ข้าราชการ","1991-06-04",35,1,"Maternal","RN","ปฏิบัติงาน",38,2,0,"BLS+ACLS+PALS","ผ่าน"],["N0038","พรทิพย์ ทองดี","หญิง",45,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2002-10-22",23,1,"ER","RN","ปฏิบัติงาน",41,3,2,"BLS+PALS","รอประเมิน"],["N0039","พรทิพย์ สมบูรณ์","หญิง",46,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2002-06-17",24,1,"NCD","PN","ปฏิบัติงาน",23,1,0,"BLS+ACLS+PALS","ผ่าน"],["N0040","สุพัตรา อินทรา","ชาย",29,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2019-10-03",6,1,"Dialysis","RN","ปฏิบัติงาน",22,0,0,"BLS+ACLS+PALS","รอประเมิน"],["N0041","เกศรินทร์ อินทรา","หญิง",27,"OPD","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2020-12-04",5,1,"Pediatric","RN","ปฏิบัติงาน",18,3,0,"BLS+ACLS","ผ่าน"],["N0042","ภัทรวดี แสงทอง","หญิง",58,"ER","พยาบาลวิชาชีพ","ข้าราชการ","1995-04-09",31,1,"ER","RN","ปฏิบัติงาน",40,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0043","ชนากานต์ รัตนชัย","หญิง",33,"สูติ-นรีเวช","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2014-12-04",11,1,"NCD","RN","ปฏิบัติงาน",17,2,0,"BLS","ผ่าน"],["N0044","กัญญาณัฐ จันทร์ฉาย","หญิง",54,"OPD","ผู้ช่วยพยาบาล","ข้าราชการ","1998-12-19",27,1,"ER","RN","ปฏิบัติงาน",42,4,3,"BLS+ACLS+PALS","รอประเมิน"],["N0045","กมลชนก ทองดี","หญิง",38,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","2015-01-09",11,1,"ทั่วไป","RN","ปฏิบัติงาน",5,0,2,"BLS+PALS","รอประเมิน"],["N0046","ณัฐวดี วีระวงศ์","หญิง",30,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2018-05-22",8,0.75,"ทั่วไป","RN","ปฏิบัติงาน",11,2,1,"BLS","ผ่าน"],["N0047","อรทัย ชัยมงคล","หญิง",38,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานราชการ","2011-07-25",15,1,"Pediatric","RN","ปฏิบัติงาน",3,0,2,"BLS","ผ่าน"],["N0048","เกศรินทร์ วัฒนชัย","หญิง",49,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2000-08-04",26,0.75,"ER","RN","ลาศึกษา",22,4,2,"BLS+ACLS+PALS","ผ่าน"],["N0049","ชนากานต์ รัตนชัย","หญิง",36,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","2014-10-11",11,1,"ICU","PN","ปฏิบัติงาน",9,3,2,"BLS+PALS","ผ่าน"],["N0050","ณัฐวดี อินทรา","หญิง",40,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2012-04-03",14,1,"ER","PN","ปฏิบัติงาน",38,4,3,"BLS+ACLS+PALS","ผ่าน"],["N0051","นภัสสร เพชรงาม","หญิง",42,"อายุรกรรมชาย","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2011-04-06",15,1,"ทั่วไป","RN","ปฏิบัติงาน",26,3,3,"BLS+ACLS","ผ่าน"],["N0052","ภัทรวดี ชัยมงคล","หญิง",54,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","1994-04-10",32,1,"ER","RN","ลาศึกษา",11,4,2,"BLS+PALS","รอประเมิน"],["N0053","ณัฐวดี บุญมี","หญิง",36,"อายุรกรรมหญิง","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2013-07-22",13,1,"NCD","RN","ปฏิบัติงาน",39,3,3,"BLS+ACLS","ผ่าน"],["N0054","สุพัตรา รัตนชัย","หญิง",32,"OR","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2016-11-08",9,1,"Pediatric","RN","ปฏิบัติงาน",18,3,1,"BLS+ACLS+PALS","ผ่าน"],["N0055","อัญชลี ทองดี","หญิง",30,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2022-05-01",4,1,"Pediatric","RN","ลาศึกษา",26,3,3,"BLS+PALS","ผ่าน"],["N0056","สุพัตรา มงคลดี","หญิง",39,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2013-01-13",13,0.75,"ICU","PN","ลาศึกษา",5,3,2,"BLS+PALS","ผ่าน"],["N0057","กัญญาณัฐ สุขใจ","หญิง",32,"กุมารเวชกรรม","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2016-06-21",10,1,"ICU","PN","ปฏิบัติงาน",41,2,0,"BLS+ACLS","ผ่าน"],["N0058","ธนพร แก้วกาญจน์","หญิง",25,"OPD","ผู้ช่วยพยาบาล","ข้าราชการ","2024-06-28",2,1,"ทั่วไป","PN","ปฏิบัติงาน",17,1,3,"BLS","ผ่าน"],["N0059","พรทิพย์ วีระวงศ์","หญิง",23,"ER","พยาบาลวิชาชีพชำนาญการพิเศษ","ลูกจ้างชั่วคราว","2025-12-30",0,0.5,"NCD","RN","ปฏิบัติงาน",19,3,2,"BLS","ผ่าน"],["N0060","ภัทรวดี แสงทอง","ชาย",45,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2005-02-15",21,1,"ทั่วไป","PN","ลาศึกษา",35,3,3,"BLS+ACLS","ผ่าน"],["N0061","กัญญาณัฐ อินทรา","ชาย",39,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2010-08-16",15,1,"Dialysis","RN","ปฏิบัติงาน",19,4,1,"BLS","ผ่าน"],["N0062","วราภรณ์ ทองแท้","หญิง",56,"ER","พยาบาลวิชาชีพ","พนักงานราชการ","1995-02-02",31,1,"ทั่วไป","RN","ลาศึกษา",4,4,1,"BLS+ACLS","รอประเมิน"],["N0063","เกศรินทร์ ชัยมงคล","หญิง",30,"ER","พยาบาลวิชาชีพชำนาญการพิเศษ","ลูกจ้างชั่วคราว","2017-12-25",8,0.5,"NCD","RN","ปฏิบัติงาน",20,3,3,"BLS","ผ่าน"],["N0064","ณัฐวดี แก้วกาญจน์","ชาย",33,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2020-01-09",6,1,"Dialysis","PN","ปฏิบัติงาน",6,1,0,"BLS+ACLS","ผ่าน"],["N0065","กัญญาณัฐ แก้วกาญจน์","ชาย",24,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2026-03-31",0,1,"Pediatric","RN","ลาศึกษา",32,2,2,"BLS","ผ่าน"],["N0066","อัญชลี รัตนชัย","หญิง",46,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2007-07-30",19,1,"Maternal","RN","ปฏิบัติงาน",37,4,3,"BLS","รอประเมิน"],["N0067","วราภรณ์ สมบูรณ์","หญิง",49,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2001-06-21",25,1,"NCD","RN","ปฏิบัติงาน",6,2,2,"BLS","ผ่าน"],["N0068","ภัทรวดี แก้วกาญจน์","หญิง",53,"ไตเทียม","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","1995-07-11",31,0.5,"ER","PN","ปฏิบัติงาน",18,2,2,"BLS","รอประเมิน"],["N0069","พิมพ์ชนก อินทรา","หญิง",46,"OPD","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2006-06-05",20,0.75,"ICU","RN","ปฏิบัติงาน",6,0,1,"BLS+ACLS","ผ่าน"],["N0070","อัญชลี ทองดี","หญิง",24,"ICU","พยาบาลวิชาชีพ","ข้าราชการ","2026-07-30",0,1,"ICU","PN","ลาศึกษา",11,4,2,"BLS","ผ่าน"],["N0071","วาสนา ศรีสวัสดิ์","ชาย",28,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2024-03-25",2,1,"ER","RN","ปฏิบัติงาน",14,4,2,"BLS+ACLS+PALS","ผ่าน"],["N0072","กมลชนก บุญมี","ชาย",35,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","2012-11-15",13,1,"ICU","RN","ปฏิบัติงาน",11,4,3,"BLS+PALS","ผ่าน"],["N0073","พรทิพย์ รัตนชัย","หญิง",42,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ข้าราชการ","2007-01-14",19,1,"Dialysis","RN","ปฏิบัติงาน",19,3,3,"BLS","ผ่าน"],["N0074","อัญชลี แสงทอง","ชาย",29,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2022-01-29",4,1,"OR","RN","ลาศึกษา",14,1,2,"BLS+ACLS","ผ่าน"],["N0075","เกศรินทร์ สมบูรณ์","หญิง",43,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2008-12-14",17,1,"Dialysis","RN","ลาศึกษา",12,0,3,"BLS+PALS","ผ่าน"],["N0076","จิราภา ทองแท้","หญิง",35,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2017-12-03",8,1,"Pediatric","PN","ปฏิบัติงาน",42,3,2,"BLS+ACLS+PALS","รอประเมิน"],["N0077","วราภรณ์ เพชรงาม","ชาย",52,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2000-09-30",25,1,"ICU","PN","ปฏิบัติงาน",1,1,1,"BLS","ผ่าน"],["N0078","พรทิพย์ แสงทอง","ชาย",30,"ICU","พยาบาลวิชาชีพ","ข้าราชการ","2018-01-24",8,1,"NCD","RN","ปฏิบัติงาน",37,1,1,"BLS+ACLS+PALS","ผ่าน"],["N0079","อรทัย รัตนชัย","หญิง",23,"OPD","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2025-01-03",1,1,"ER","RN","ปฏิบัติงาน",27,4,0,"BLS+ACLS+PALS","ผ่าน"],["N0080","อรทัย พูนทรัพย์","หญิง",34,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2018-12-21",7,1,"OR","RN","ปฏิบัติงาน",22,3,3,"BLS","ผ่าน"],["N0081","ณัฐวดี ศรีสุข","หญิง",56,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1994-02-02",32,1,"ICU","RN","ปฏิบัติงาน",11,2,1,"BLS+ACLS","ผ่าน"],["N0082","ศิริพร ทองแท้","หญิง",34,"กุมารเวชกรรม","ผู้ช่วยพยาบาล","ข้าราชการ","2016-07-13",10,1,"OR","RN","ปฏิบัติงาน",18,0,0,"BLS+PALS","ผ่าน"],["N0083","นภัสสร จันทร์ฉาย","หญิง",30,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2020-04-17",6,0.75,"ICU","RN","ปฏิบัติงาน",38,2,3,"BLS+ACLS+PALS","ผ่าน"],["N0084","วรรณภา ใจดี","หญิง",37,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2012-07-26",14,1,"NCD","RN","ปฏิบัติงาน",29,0,2,"BLS+ACLS","ผ่าน"],["N0085","อัญชลี ทองแท้","หญิง",37,"สูติ-นรีเวช","ผู้ช่วยพยาบาล","ข้าราชการ","2015-05-20",11,1,"Maternal","PN","ปฏิบัติงาน",4,1,3,"BLS+ACLS","ผ่าน"],["N0086","สุพัตรา อินทรา","หญิง",56,"ER","พยาบาลวิชาชีพชำนาญการ","พนักงานราชการ","1993-08-27",32,1,"Pediatric","RN","ปฏิบัติงาน",3,3,3,"BLS","รอประเมิน"],["N0087","จิราภา รัตนชัย","หญิง",29,"กุมารเวชกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2019-10-23",6,1,"Pediatric","RN","ปฏิบัติงาน",36,2,0,"BLS+ACLS+PALS","ผ่าน"],["N0088","กมลชนก อินทรา","หญิง",30,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2020-09-12",5,1,"OR","RN","ปฏิบัติงาน",31,3,3,"BLS+PALS","รอประเมิน"],["N0089","เกศรินทร์ ใจดี","หญิง",25,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2026-06-27",0,1,"OR","PN","ปฏิบัติงาน",31,3,2,"BLS+ACLS+PALS","ผ่าน"],["N0090","อัญชลี แสงทอง","ชาย",49,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ข้าราชการ","2001-01-30",25,1,"ทั่วไป","RN","ลาศึกษา",26,2,3,"BLS","ผ่าน"],["N0091","ศิริพร แก้วกาญจน์","หญิง",41,"ER","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2010-12-11",15,1,"Maternal","RN","ลาศึกษา",20,4,1,"BLS+ACLS","ผ่าน"],["N0092","พิมพ์ชนก พูนทรัพย์","หญิง",38,"ICU","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2013-10-17",12,1,"OR","PN","ปฏิบัติงาน",30,0,3,"BLS+PALS","ผ่าน"],["N0093","อัญชลี แสงทอง","หญิง",45,"กุมารเวชกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2006-11-15",19,1,"NCD","RN","ปฏิบัติงาน",1,3,1,"BLS+PALS","ผ่าน"],["N0094","จิราภา สมบูรณ์","หญิง",58,"ICU","พยาบาลวิชาชีพ","พนักงานราชการ","1990-08-24",35,1,"Dialysis","RN","ปฏิบัติงาน",25,0,2,"BLS+PALS","ผ่าน"],["N0095","สุภาวดี จันทร์ฉาย","หญิง",56,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","1992-02-03",34,1,"Dialysis","RN","ปฏิบัติงาน",2,3,2,"BLS+ACLS+PALS","ผ่าน"],["N0096","ชนากานต์ ใจดี","ชาย",52,"ไตเทียม","พยาบาลวิชาชีพ","พนักงานราชการ","1999-06-03",27,1,"NCD","PN","ปฏิบัติงาน",21,4,3,"BLS+ACLS+PALS","รอประเมิน"],["N0097","ภัทรวดี รัตนชัย","หญิง",53,"ศัลยกรรม","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","1996-06-07",30,0.5,"Dialysis","RN","ปฏิบัติงาน",8,2,1,"BLS+ACLS","รอประเมิน"],["N0098","นภัสสร จันทร์ฉาย","หญิง",48,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2004-04-29",22,1,"OR","PN","ลาศึกษา",42,4,0,"BLS+PALS","รอประเมิน"],["N0099","กิตติยา เพชรงาม","ชาย",34,"OPD","พยาบาลวิชาชีพชำนาญการ","พนักงานราชการ","2016-03-25",10,1,"OR","RN","ปฏิบัติงาน",21,1,1,"BLS","ผ่าน"],["N0100","จิราภา จันทร์ฉาย","หญิง",32,"ER","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2017-09-04",8,0.5,"OR","RN","ปฏิบัติงาน",4,1,2,"BLS+PALS","ผ่าน"],["N0101","พรทิพย์ วีระวงศ์","หญิง",38,"ER","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2015-05-12",11,1,"ICU","PN","ปฏิบัติงาน",12,4,2,"BLS+PALS","ผ่าน"],["N0102","นภัสสร ใจดี","หญิง",57,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","1992-05-27",34,1,"ทั่วไป","RN","ลาศึกษา",4,3,3,"BLS+PALS","ผ่าน"],["N0103","ศิริพร เพชรงาม","หญิง",24,"OPD","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2025-11-19",0,0.5,"NCD","RN","ปฏิบัติงาน",1,3,0,"BLS+ACLS+PALS","ผ่าน"],["N0104","ณัฐวดี แก้วกาญจน์","หญิง",41,"OR","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2009-08-22",16,1,"OR","RN","ปฏิบัติงาน",3,4,0,"BLS+ACLS","ผ่าน"],["N0105","ชนากานต์ บุญมี","หญิง",56,"อายุรกรรมหญิง","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1997-02-11",29,1,"OR","RN","ปฏิบัติงาน",15,1,2,"BLS","รอประเมิน"],["N0106","อรทัย รัตนชัย","หญิง",42,"ER","ผู้ช่วยพยาบาล","ข้าราชการ","2009-09-28",16,1,"NCD","RN","ปฏิบัติงาน",40,0,1,"BLS+PALS","ผ่าน"],["N0107","กิตติยา ทองดี","หญิง",45,"ไตเทียม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2005-03-25",21,1,"Pediatric","PN","ปฏิบัติงาน",29,1,0,"BLS+PALS","ผ่าน"],["N0108","เกศรินทร์ ทองแท้","หญิง",29,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2020-09-24",5,1,"ทั่วไป","RN","ปฏิบัติงาน",41,1,0,"BLS+ACLS","ผ่าน"],["N0109","พรทิพย์ รัตนชัย","หญิง",38,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","2014-10-06",11,1,"ทั่วไป","RN","ลาศึกษา",7,1,3,"BLS+ACLS","ผ่าน"],["N0110","ศิริพร ใจดี","หญิง",57,"ICU","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1994-03-17",32,1,"Dialysis","RN","ปฏิบัติงาน",7,1,1,"BLS","ผ่าน"],["N0111","ภัทรวดี คำแสน","หญิง",34,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2013-12-08",12,1,"Pediatric","PN","ปฏิบัติงาน",29,1,1,"BLS+PALS","รอประเมิน"],["N0112","กัญญาณัฐ สมบูรณ์","หญิง",40,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2009-08-13",16,1,"Pediatric","RN","ปฏิบัติงาน",5,1,3,"BLS+ACLS+PALS","ผ่าน"],["N0113","อรทัย บุญมี","หญิง",43,"ไตเทียม","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2010-03-23",16,1,"Maternal","RN","ปฏิบัติงาน",16,2,3,"BLS","ผ่าน"],["N0114","เกศรินทร์ ศรีสุข","หญิง",58,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","1990-08-25",35,1,"ทั่วไป","RN","ปฏิบัติงาน",20,2,1,"BLS+ACLS+PALS","ผ่าน"],["N0115","พรทิพย์ ทองดี","หญิง",56,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1993-05-19",33,1,"OR","RN","ปฏิบัติงาน",0,4,3,"BLS+ACLS+PALS","ผ่าน"],["N0116","พิมพ์ชนก จันทร์ฉาย","หญิง",57,"OPD","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","1994-01-21",32,1,"ทั่วไป","RN","ลาศึกษา",3,2,0,"BLS","รอประเมิน"],["N0117","ธนพร ใจดี","หญิง",37,"กุมารเวชกรรม","ผู้ช่วยพยาบาล","ข้าราชการ","2013-12-05",12,1,"Dialysis","RN","ปฏิบัติงาน",38,1,3,"BLS","ผ่าน"],["N0118","สุพัตรา พูนทรัพย์","หญิง",38,"ER","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2011-02-19",15,0.5,"Dialysis","RN","ลาศึกษา",11,1,3,"BLS+ACLS+PALS","ผ่าน"],["N0119","วราภรณ์ ทองดี","หญิง",33,"OPD","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2016-05-26",10,1,"NCD","RN","ลาศึกษา",30,3,3,"BLS","ผ่าน"],["N0120","ธนพร ชัยมงคล","หญิง",43,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2005-02-26",21,0.75,"OR","RN","ปฏิบัติงาน",39,0,3,"BLS+ACLS","ผ่าน"],["N0121","กัญญาณัฐ แสงทอง","ชาย",37,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","2016-01-07",10,1,"NCD","RN","ปฏิบัติงาน",11,3,1,"BLS+ACLS+PALS","ผ่าน"],["N0122","ศิริพร จันทร์ฉาย","หญิง",42,"กุมารเวชกรรม","ผู้ช่วยพยาบาล","ข้าราชการ","2007-08-19",18,1,"OR","PN","ปฏิบัติงาน",12,2,2,"BLS+ACLS+PALS","ผ่าน"],["N0123","พิมพ์ชนก สุขใจ","หญิง",26,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2024-09-28",1,1,"ER","RN","ปฏิบัติงาน",28,1,1,"BLS+ACLS","ผ่าน"],["N0124","กมลชนก ศรีสวัสดิ์","หญิง",37,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2014-10-11",11,1,"ER","RN","ปฏิบัติงาน",17,0,1,"BLS+ACLS","รอประเมิน"],["N0125","ณัฐวดี แก้วกาญจน์","หญิง",51,"OR","พยาบาลวิชาชีพ","ข้าราชการ","2000-03-06",26,1,"Dialysis","RN","ปฏิบัติงาน",28,2,0,"BLS+PALS","ผ่าน"],["N0126","วาสนา ทองดี","หญิง",53,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","1995-08-29",30,1,"Maternal","RN","ลาศึกษา",29,3,2,"BLS+ACLS+PALS","รอประเมิน"],["N0127","ศิริพร ชัยมงคล","หญิง",31,"OPD","ผู้ช่วยพยาบาล","ข้าราชการ","2018-05-11",8,1,"Dialysis","RN","ปฏิบัติงาน",25,0,1,"BLS","ผ่าน"],["N0128","สุพัตรา รัตนชัย","หญิง",27,"OPD","ผู้ช่วยพยาบาล","ลูกจ้างชั่วคราว","2023-07-01",3,1,"ER","RN","ปฏิบัติงาน",7,3,3,"BLS+ACLS","ผ่าน"],["N0129","ศิริพร จันทร์ฉาย","หญิง",33,"สูติ-นรีเวช","ผู้ช่วยพยาบาล","พนักงานกระทรวงสาธารณสุข","2018-03-19",8,1,"ICU","RN","ลาศึกษา",39,4,0,"BLS+ACLS","รอประเมิน"],["N0130","กิตติยา สมบูรณ์","หญิง",36,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2016-09-09",9,1,"Pediatric","RN","ปฏิบัติงาน",19,1,1,"BLS+PALS","ผ่าน"],["N0131","ศิริพร ชัยมงคล","หญิง",43,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2008-03-24",18,1,"Pediatric","RN","ลาศึกษา",12,3,3,"BLS","รอประเมิน"],["N0132","พิมพ์ชนก อินทรา","หญิง",54,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","1998-09-24",27,1,"ER","RN","ลาศึกษา",11,3,2,"BLS+ACLS+PALS","ผ่าน"],["N0133","สุภาวดี อินทรา","หญิง",39,"OPD","ผู้ช่วยพยาบาล","พนักงานกระทรวงสาธารณสุข","2013-11-04",12,1,"ทั่วไป","RN","ปฏิบัติงาน",4,1,2,"BLS+ACLS+PALS","ผ่าน"],["N0134","วราภรณ์ สุขใจ","หญิง",46,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2005-04-13",21,1,"ทั่วไป","RN","ปฏิบัติงาน",15,0,1,"BLS+ACLS","ผ่าน"],["N0135","จิราภา ศรีสุข","หญิง",33,"ไตเทียม","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2018-03-16",8,0.5,"NCD","RN","ปฏิบัติงาน",32,0,1,"BLS+ACLS+PALS","ผ่าน"],["N0136","กมลชนก บุญมี","หญิง",52,"ER","พยาบาลวิชาชีพชำนาญการพิเศษ","พนักงานกระทรวงสาธารณสุข","2000-03-09",26,1,"ER","RN","ปฏิบัติงาน",25,0,1,"BLS+ACLS","รอประเมิน"],["N0137","สุภาวดี จันทร์ฉาย","หญิง",48,"OR","พยาบาลวิชาชีพ","ข้าราชการ","2000-12-27",25,1,"Pediatric","RN","ลาศึกษา",21,0,0,"BLS+ACLS","รอประเมิน"],["N0138","กัญญาณัฐ บุญมี","หญิง",48,"ไตเทียม","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2000-03-07",26,1,"NCD","RN","ปฏิบัติงาน",5,4,1,"BLS+ACLS","ผ่าน"],["N0139","อรทัย วีระวงศ์","หญิง",40,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการพิเศษ","พนักงานกระทรวงสาธารณสุข","2010-08-21",15,1,"ER","RN","ลาศึกษา",10,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0140","นภัสสร ทองแท้","หญิง",50,"ศัลยกรรม","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","1998-06-24",28,0.5,"ER","RN","ปฏิบัติงาน",26,0,3,"BLS+PALS","ผ่าน"],["N0141","กัญญาณัฐ พูนทรัพย์","หญิง",45,"ICU","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2004-11-24",21,0.5,"ทั่วไป","RN","ปฏิบัติงาน",4,3,0,"BLS+PALS","รอประเมิน"],["N0142","สุพัตรา ศรีสวัสดิ์","หญิง",49,"อายุรกรรมชาย","พยาบาลวิชาชีพ","พนักงานราชการ","1999-04-28",27,1,"ER","RN","ลาศึกษา",1,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0143","ศิริพร ทองแท้","หญิง",43,"สูติ-นรีเวช","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2005-11-10",20,1,"ICU","RN","ปฏิบัติงาน",4,1,0,"BLS+ACLS","รอประเมิน"],["N0144","ธนพร แสงทอง","หญิง",33,"OPD","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2016-06-12",10,1,"ทั่วไป","RN","ปฏิบัติงาน",30,1,0,"BLS+ACLS","รอประเมิน"],["N0145","อัญชลี แสงทอง","หญิง",37,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2011-09-24",14,1,"NCD","RN","ปฏิบัติงาน",37,4,3,"BLS+ACLS+PALS","ผ่าน"],["N0146","ณัฐวดี วีระวงศ์","หญิง",37,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2011-12-17",14,1,"Dialysis","RN","ปฏิบัติงาน",9,0,0,"BLS+ACLS+PALS","รอประเมิน"],["N0147","สุภาวดี วีระวงศ์","หญิง",26,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2024-09-08",1,1,"NCD","RN","ลาศึกษา",11,3,0,"BLS+ACLS","ผ่าน"],["N0148","จิราภา สุขใจ","หญิง",50,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","1998-02-24",28,1,"Maternal","RN","ปฏิบัติงาน",42,3,2,"BLS+PALS","รอประเมิน"],["N0149","ศิริพร ชัยมงคล","หญิง",26,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2022-11-07",3,1,"Dialysis","RN","ปฏิบัติงาน",25,4,2,"BLS+ACLS+PALS","รอประเมิน"],["N0150","อัญชลี สมบูรณ์","หญิง",53,"ICU","พยาบาลวิชาชีพ","ข้าราชการ","2000-05-18",26,1,"ER","RN","ปฏิบัติงาน",31,2,0,"BLS","รอประเมิน"],["N0151","นภัสสร คำแสน","หญิง",55,"สูติ-นรีเวช","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","1997-05-03",29,1,"ทั่วไป","RN","ปฏิบัติงาน",32,4,0,"BLS","ผ่าน"],["N0152","ณัฐวดี ศรีสุข","หญิง",28,"ER","ผู้ช่วยพยาบาล","พนักงานกระทรวงสาธารณสุข","2021-07-24",5,1,"Pediatric","RN","ลาศึกษา",26,3,0,"BLS+ACLS","ผ่าน"],["N0153","ศิริพร จันทร์ฉาย","หญิง",30,"ICU","พยาบาลวิชาชีพ","พนักงานราชการ","2022-12-31",3,1,"OR","RN","ปฏิบัติงาน",40,4,1,"BLS+ACLS","ผ่าน"],["N0154","อรทัย ชัยมงคล","หญิง",25,"OPD","พยาบาลวิชาชีพ","พนักงานราชการ","2024-05-24",2,1,"OR","RN","ปฏิบัติงาน",38,1,2,"BLS+ACLS+PALS","รอประเมิน"],["N0155","กมลชนก วัฒนชัย","หญิง",35,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","2015-08-29",10,1,"Maternal","RN","ปฏิบัติงาน",32,1,1,"BLS","รอประเมิน"],["N0156","วรรณภา เพชรงาม","หญิง",29,"ICU","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2021-07-17",5,1,"NCD","RN","ปฏิบัติงาน",14,0,3,"BLS","รอประเมิน"],["N0157","ศิริพร วัฒนชัย","หญิง",23,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2025-10-26",0,1,"Maternal","PN","ปฏิบัติงาน",32,3,2,"BLS+ACLS","รอประเมิน"],["N0158","อัญชลี มงคลดี","หญิง",44,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2007-05-29",19,1,"ER","RN","ปฏิบัติงาน",10,0,3,"BLS","ผ่าน"],["N0159","อัญชลี ศรีสวัสดิ์","หญิง",29,"สูติ-นรีเวช","พยาบาลวิชาชีพชำนาญการพิเศษ","ข้าราชการ","2023-08-09",2,1,"NCD","RN","ปฏิบัติงาน",25,1,0,"BLS","ผ่าน"],["N0160","ศิริพร เพชรงาม","ชาย",47,"ศัลยกรรม","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2001-09-13",24,1,"OR","RN","ปฏิบัติงาน",14,3,2,"BLS+PALS","รอประเมิน"],["N0161","สุภาวดี ใจดี","หญิง",55,"อายุรกรรมชาย","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","1995-01-26",31,1,"Dialysis","RN","ปฏิบัติงาน",13,2,3,"BLS+ACLS+PALS","ผ่าน"],["N0162","อรทัย จันทร์ฉาย","หญิง",27,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2022-11-15",3,1,"OR","RN","ปฏิบัติงาน",39,0,2,"BLS+ACLS","ผ่าน"],["N0163","ศิริพร ชัยมงคล","หญิง",49,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1999-10-13",26,1,"ICU","RN","ลาศึกษา",30,0,2,"BLS+PALS","รอประเมิน"],["N0164","จิราภา จันทร์ฉาย","หญิง",37,"ICU","พยาบาลวิชาชีพชำนาญการ","ลูกจ้างชั่วคราว","2010-11-27",15,0.5,"NCD","RN","ปฏิบัติงาน",14,2,3,"BLS","ผ่าน"],["N0165","ธนพร จันทร์ฉาย","หญิง",27,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","2025-03-10",1,1,"NCD","RN","ปฏิบัติงาน",42,4,0,"BLS+PALS","ผ่าน"],["N0166","กมลชนก วีระวงศ์","หญิง",30,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2019-11-28",6,1,"Maternal","RN","ปฏิบัติงาน",30,3,0,"BLS+ACLS+PALS","ผ่าน"],["N0167","วรรณภา ชัยมงคล","หญิง",53,"OR","พยาบาลวิชาชีพ","ข้าราชการ","1997-12-08",28,1,"ทั่วไป","PN","ปฏิบัติงาน",23,4,0,"BLS+ACLS+PALS","ผ่าน"],["N0168","กัญญาณัฐ แสงทอง","หญิง",51,"ศัลยกรรม","พยาบาลวิชาชีพ","พนักงานราชการ","1998-09-01",27,1,"OR","RN","ปฏิบัติงาน",13,3,3,"BLS+ACLS+PALS","ผ่าน"],["N0169","ธนพร ศรีสวัสดิ์","หญิง",37,"OPD","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2011-12-16",14,0.75,"ER","RN","ปฏิบัติงาน",22,1,1,"BLS","รอประเมิน"],["N0170","อัญชลี วีระวงศ์","หญิง",44,"OR","พยาบาลวิชาชีพ","ข้าราชการ","2003-11-17",22,1,"NCD","PN","ปฏิบัติงาน",15,3,3,"BLS+ACLS","ผ่าน"],["N0171","กัญญาณัฐ วีระวงศ์","หญิง",57,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1991-10-22",34,1,"Dialysis","PN","ปฏิบัติงาน",38,0,3,"BLS+ACLS+PALS","ผ่าน"],["N0172","จิราภา รัตนชัย","หญิง",35,"ER","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2013-11-07",12,1,"ทั่วไป","RN","ปฏิบัติงาน",36,0,2,"BLS","ผ่าน"],["N0173","พรทิพย์ วีระวงศ์","หญิง",53,"ER","พยาบาลวิชาชีพ","ข้าราชการ","1999-04-09",27,1,"ICU","RN","ปฏิบัติงาน",19,4,1,"BLS+PALS","ผ่าน"],["N0174","วรรณภา ทองดี","หญิง",41,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","2007-05-26",19,1,"ER","RN","ลาศึกษา",20,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0175","สุภาวดี ทองแท้","หญิง",31,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2019-03-25",7,1,"Pediatric","RN","ปฏิบัติงาน",32,2,2,"BLS+ACLS","รอประเมิน"],["N0176","จิราภา แสงทอง","หญิง",39,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2010-04-30",16,1,"NCD","RN","ลาศึกษา",38,1,0,"BLS+ACLS","ผ่าน"],["N0177","อัญชลี ใจดี","ชาย",31,"OR","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2022-02-27",4,1,"Pediatric","RN","ลาศึกษา",21,2,3,"BLS+PALS","ผ่าน"],["N0178","เกศรินทร์ ศรีสุข","ชาย",26,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2024-07-22",2,1,"ทั่วไป","PN","ปฏิบัติงาน",2,0,1,"BLS","รอประเมิน"],["N0179","ศิริพร ชัยมงคล","หญิง",48,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2005-07-27",21,1,"ER","RN","ปฏิบัติงาน",23,2,2,"BLS","ผ่าน"],["N0180","พรทิพย์ คำแสน","หญิง",45,"ICU","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2005-08-12",20,1,"Pediatric","PN","ปฏิบัติงาน",14,1,1,"BLS+ACLS+PALS","ผ่าน"],["N0181","สุภาวดี รัตนชัย","หญิง",31,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2018-05-29",8,1,"ทั่วไป","PN","ลาศึกษา",27,2,0,"BLS+ACLS","ผ่าน"],["N0182","กัญญาณัฐ พูนทรัพย์","หญิง",31,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","2019-09-18",6,1,"ทั่วไป","RN","ปฏิบัติงาน",25,3,0,"BLS+ACLS+PALS","ผ่าน"],["N0183","จิราภา จันทร์ฉาย","หญิง",46,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2001-09-06",24,1,"Maternal","RN","ปฏิบัติงาน",11,2,2,"BLS+ACLS","รอประเมิน"],["N0184","จิราภา ศรีสวัสดิ์","หญิง",45,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","2004-05-14",22,1,"OR","RN","ปฏิบัติงาน",34,4,2,"BLS+PALS","ผ่าน"],["N0185","ณัฐวดี ทองดี","หญิง",57,"กุมารเวชกรรม","ผู้ช่วยพยาบาล","ลูกจ้างชั่วคราว","1991-04-10",35,0.5,"ER","RN","ปฏิบัติงาน",34,2,0,"BLS+ACLS","ผ่าน"],["N0186","กัญญาณัฐ วัฒนชัย","หญิง",25,"กุมารเวชกรรม","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2026-07-28",0,1,"ER","RN","ลาศึกษา",39,0,3,"BLS","ผ่าน"],["N0187","ศิริพร แก้วกาญจน์","ชาย",23,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2026-07-01",0,1,"Dialysis","RN","ปฏิบัติงาน",10,2,1,"BLS+PALS","ผ่าน"],["N0188","ธนพร รัตนชัย","หญิง",33,"กุมารเวชกรรม","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2018-11-21",7,1,"Maternal","RN","ปฏิบัติงาน",21,4,2,"BLS+ACLS","รอประเมิน"],["N0189","จิราภา อินทรา","หญิง",27,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2024-01-03",2,1,"ICU","PN","ปฏิบัติงาน",27,0,3,"BLS+PALS","ผ่าน"],["N0190","นภัสสร พูนทรัพย์","หญิง",34,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานราชการ","2015-12-06",10,1,"NCD","RN","ลาศึกษา",19,1,2,"BLS+ACLS+PALS","รอประเมิน"],["N0191","ชนากานต์ ใจดี","หญิง",28,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2023-02-10",3,1,"Dialysis","RN","ลาศึกษา",42,1,3,"BLS+ACLS","ผ่าน"],["N0192","จิราภา พูนทรัพย์","หญิง",53,"ICU","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","1996-11-05",29,1,"ทั่วไป","RN","ลาศึกษา",36,2,1,"BLS+PALS","ผ่าน"],["N0193","พรทิพย์ รัตนชัย","หญิง",46,"ER","ผู้ช่วยพยาบาล","พนักงานกระทรวงสาธารณสุข","2001-12-20",24,1,"ER","RN","ปฏิบัติงาน",3,3,1,"BLS+ACLS","ผ่าน"],["N0194","อัญชลี คำแสน","หญิง",58,"ER","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","1991-06-02",35,1,"Maternal","RN","ปฏิบัติงาน",12,2,0,"BLS+ACLS+PALS","ผ่าน"],["N0195","อัญชลี วีระวงศ์","หญิง",40,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ข้าราชการ","2013-04-05",13,1,"ICU","RN","ปฏิบัติงาน",38,1,2,"BLS","ผ่าน"],["N0196","พรทิพย์ แก้วกาญจน์","หญิง",26,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2026-03-11",0,1,"OR","PN","ปฏิบัติงาน",23,0,1,"BLS+PALS","ผ่าน"],["N0197","กัญญาณัฐ มงคลดี","หญิง",24,"ER","พยาบาลวิชาชีพ","ลูกจ้างชั่วคราว","2026-01-11",0,0.75,"Dialysis","RN","ปฏิบัติงาน",31,4,1,"BLS+PALS","ผ่าน"],["N0198","พิมพ์ชนก วีระวงศ์","หญิง",40,"อายุรกรรมชาย","พยาบาลวิชาชีพชำนาญการพิเศษ","ลูกจ้างชั่วคราว","2009-02-06",17,0.75,"ER","RN","ปฏิบัติงาน",11,0,1,"BLS","ผ่าน"],["N0199","พิมพ์ชนก ศรีสวัสดิ์","ชาย",56,"OPD","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","1991-08-15",34,1,"ER","RN","ปฏิบัติงาน",32,2,1,"BLS+PALS","ผ่าน"],["N0200","นภัสสร รัตนชัย","หญิง",39,"ไตเทียม","พยาบาลวิชาชีพ","ข้าราชการ","2009-07-26",17,1,"OR","RN","ปฏิบัติงาน",20,3,1,"BLS","ผ่าน"],["N0201","วรรณภา รัตนชัย","หญิง",49,"อายุรกรรมหญิง","พยาบาลวิชาชีพ","ข้าราชการ","2004-05-04",22,1,"NCD","RN","ปฏิบัติงาน",12,3,1,"BLS+ACLS+PALS","ผ่าน"],["N0202","ศิริพร ชัยมงคล","หญิง",26,"OR","พยาบาลวิชาชีพ","ข้าราชการ","2023-04-29",3,1,"Pediatric","RN","ปฏิบัติงาน",41,3,3,"BLS","ผ่าน"],["N0203","กมลชนก เพชรงาม","หญิง",51,"ICU","พยาบาลวิชาชีพ","ข้าราชการ","1999-10-18",26,1,"Pediatric","RN","ปฏิบัติงาน",2,3,2,"BLS+PALS","ผ่าน"],["N0204","ชนากานต์ วัฒนชัย","หญิง",35,"สูติ-นรีเวช","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2013-12-07",12,1,"ทั่วไป","RN","ปฏิบัติงาน",31,0,0,"BLS+ACLS+PALS","ผ่าน"],["N0205","พรทิพย์ รัตนชัย","ชาย",33,"กุมารเวชกรรม","พยาบาลวิชาชีพชำนาญการพิเศษ","ลูกจ้างชั่วคราว","2018-04-02",8,1,"NCD","RN","ปฏิบัติงาน",11,3,1,"BLS+ACLS+PALS","ผ่าน"],["N0206","ชนากานต์ ศรีสวัสดิ์","หญิง",24,"OPD","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","2025-08-12",0,1,"ER","PN","ปฏิบัติงาน",20,0,0,"BLS+ACLS","ผ่าน"],["N0207","ชนากานต์ บุญมี","หญิง",38,"กุมารเวชกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2009-12-27",16,1,"ทั่วไป","RN","ปฏิบัติงาน",15,4,3,"BLS+ACLS","รอประเมิน"],["N0208","กมลชนก วัฒนชัย","หญิง",40,"ศัลยกรรม","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2007-09-28",18,1,"ICU","RN","ปฏิบัติงาน",10,0,0,"BLS+ACLS","รอประเมิน"],["N0209","วรรณภา แสงทอง","หญิง",38,"OR","พยาบาลวิชาชีพชำนาญการ","พนักงานกระทรวงสาธารณสุข","2012-08-12",13,1,"ทั่วไป","PN","ปฏิบัติงาน",33,3,1,"BLS+ACLS+PALS","ผ่าน"],["N0210","พรทิพย์ รัตนชัย","หญิง",43,"สูติ-นรีเวช","พยาบาลวิชาชีพ","ข้าราชการ","2010-03-07",16,1,"ICU","RN","ปฏิบัติงาน",40,3,1,"BLS+PALS","ผ่าน"],["N0211","ณัฐวดี ศรีสุข","หญิง",41,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2011-11-07",14,1,"ICU","PN","ปฏิบัติงาน",21,0,1,"BLS+ACLS","ผ่าน"],["N0212","อัญชลี ชัยมงคล","หญิง",32,"OPD","พยาบาลวิชาชีพ","ข้าราชการ","2016-04-30",10,1,"Dialysis","RN","ปฏิบัติงาน",3,4,3,"BLS+PALS","ผ่าน"],["N0213","ณัฐวดี แสงทอง","หญิง",34,"OR","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2018-08-06",7,1,"NCD","PN","ปฏิบัติงาน",37,0,0,"BLS","ผ่าน"],["N0214","อรทัย แก้วกาญจน์","หญิง",30,"ไตเทียม","ผู้ช่วยพยาบาล","ข้าราชการ","2019-07-19",7,1,"ทั่วไป","RN","ลาศึกษา",30,4,0,"BLS","ผ่าน"],["N0215","วราภรณ์ ชัยมงคล","หญิง",33,"ไตเทียม","ผู้ช่วยพยาบาล","ข้าราชการ","2016-04-05",10,1,"Maternal","RN","ปฏิบัติงาน",12,3,3,"BLS","ผ่าน"],["N0216","กมลชนก เพชรงาม","หญิง",56,"ER","พยาบาลวิชาชีพ","พนักงานกระทรวงสาธารณสุข","1993-09-25",32,1,"ER","PN","ปฏิบัติงาน",25,2,2,"BLS+ACLS+PALS","ผ่าน"],["N0217","พิมพ์ชนก แก้วกาญจน์","ชาย",41,"ER","พยาบาลวิชาชีพ","ข้าราชการ","2012-04-22",14,1,"Maternal","RN","ลาศึกษา",42,4,2,"BLS+ACLS+PALS","ผ่าน"],["N0218","วรรณภา ชัยมงคล","ชาย",25,"สูติ-นรีเวช","พยาบาลวิชาชีพชำนาญการ","ข้าราชการ","2025-10-27",0,1,"ทั่วไป","PN","ลาศึกษา",5,3,2,"BLS+PALS","ผ่าน"],["N0219","ศิริพร วัฒนชัย","หญิง",34,"ศัลยกรรม","พยาบาลวิชาชีพ","ข้าราชการ","2017-11-08",8,1,"NCD","PN","ปฏิบัติงาน",32,1,2,"BLS+PALS","รอประเมิน"],["N0220","จิราภา พูนทรัพย์","ชาย",50,"อายุรกรรมชาย","พยาบาลวิชาชีพ","ข้าราชการ","1999-05-19",27,1,"OR","RN","ปฏิบัติงาน",3,4,3,"BLS+ACLS","ผ่าน"]],"assumptions":["สรุปนี้วิเคราะห์เฉพาะ sheet Nurse_Master ตามคำขอ โดยใช้ OPD_Visits และ Medication_Catalog เป็นข้อมูลประกอบที่ไม่ได้รวมในการคำนวณ","เกณฑ์ความเสี่ยงเชิงบริหารที่ใช้: อายุ >= 55 ปี, OT > 30 ชม./เดือน, วันลา >= 3 วัน/เดือน, FTE < 1.0, Competency != ผ่าน","ค่าอายุงานอ้างอิงคอลัมน์ อายุงาน(ปี) ในไฟล์ และตรวจเทียบคร่าว ๆ กับวันที่เริ่มงาน ณ วันที่ 2026-08-27"],"workbookSheets":[{"sheet":"Nurse_Master","rows":220,"columns":18},{"sheet":"OPD_Visits","rows":3000,"columns":45},{"sheet":"Medication_Catalog","rows":30,"columns":5}]};
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbyigYKmlMeWLayftbu6u3zXiY-n4SVGeiOavASb8-60FV8rz4qJvkrfxXk9evBpvSeV/exec";
+    const REQUIRED_HEADERS = ["Nurse_ID","ชื่อ-สกุล","เพศ","อายุ","หน่วยงาน","ตำแหน่ง","ประเภทการจ้าง","วันที่เริ่มงาน","อายุงาน(ปี)","FTE","ทักษะหลัก","วิชาชีพ","สถานะ","OT_ชม./เดือน","วันลา/เดือน","อบรม_วัน/เดือน","ใบรับรอง","Competency"];
+    const NUMERIC = new Set(["อายุ","อายุงาน(ปี)","FTE","OT_ชม./เดือน","วันลา/เดือน","อบรม_วัน/เดือน"]);
+    const CATEGORICAL = ["เพศ","หน่วยงาน","ตำแหน่ง","ประเภทการจ้าง","ทักษะหลัก","วิชาชีพ","สถานะ","ใบรับรอง","Competency"];
+    const RANGE_INPUTS = ["ageMin","ageMax","tenureMin","tenureMax","fteMin","fteMax","otMin","otMax","leaveMin","leaveMax","trainingMin","trainingMax","startFrom","startTo"];
+    const PALETTE = ["#0f8b8d","#2f80ed","#f5b841","#f26b5e","#17a673","#7c5cff","#e0527d","#32c7c9","#a3d977","#0b2545"];
+    const CURRENT_DATE = new Date(INITIAL_PAYLOAD.metadata.current_date + "T00:00:00");
+    let state = { headers: [], records: [], filtered: [], source: "", page: 1, pageSize: "all", sortKey: "Nurse_ID", sortDir: "asc", editMode: false, dirty: false, selectedIds: new Set(), nextRowId: 1 };
+
+    const $ = (id) => document.getElementById(id);
+    const fmt = (n, digits = 1) => Number.isFinite(Number(n)) ? Number(n).toLocaleString("th-TH", { maximumFractionDigits: digits, minimumFractionDigits: Number(n) % 1 ? digits : 0 }) : "";
+    const pct = (part, total) => total ? (part / total * 100) : 0;
+    const fmtPct = (v) => `${Number(v || 0).toLocaleString("th-TH", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%`;
+    const sum = (rows, key) => rows.reduce((a, r) => a + (Number(r[key]) || 0), 0);
+    const avg = (rows, key) => rows.length ? sum(rows, key) / rows.length : 0;
+    const countWhere = (rows, fn) => rows.reduce((a, r) => a + (fn(r) ? 1 : 0), 0);
+    const escapeHtml = (v) => String(v ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]));
+    const pad2 = (n) => String(n).padStart(2, "0");
+
+    function excelSerialDate(serial) {
+      const date = new Date(Date.UTC(1899, 11, 30) + Number(serial) * 86400000);
+      return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}`;
+    }
+    function toIsoDate(value) {
+      if (value == null || value === "") return "";
+      if (value instanceof Date && !Number.isNaN(value.getTime())) return `${value.getFullYear()}-${pad2(value.getMonth()+1)}-${pad2(value.getDate())}`;
+      if (typeof value === "number") return excelSerialDate(value);
+      const text = String(value).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+      const d = new Date(text);
+      return Number.isNaN(d.getTime()) ? text : `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    }
+    function cleanNumber(value) {
+      if (value == null || value === "") return 0;
+      if (typeof value === "number") return value;
+      const parsed = Number(String(value).replace(/,/g, "").trim());
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    function newRowId() {
+      return `row-${state.nextRowId++}`;
+    }
+    function coerceCellValue(key, value) {
+      const text = String(value ?? "").trim();
+      if (key === "วันที่เริ่มงาน") return toIsoDate(text);
+      if (NUMERIC.has(key)) return cleanNumber(text);
+      return text;
+    }
+    function cleanRecord(record) {
+      const out = {};
+      state.headers.forEach(h => out[h] = record[h] ?? "");
+      return out;
+    }
+    function findRecordById(rowId) {
+      return state.records.find(r => r.__rowId === rowId);
+    }
+    function normalizeRecords(headers, rows) {
+      const allHeaders = [...headers.map(h => String(h || "").trim()).filter(Boolean)];
+      for (const h of REQUIRED_HEADERS) if (!allHeaders.includes(h)) allHeaders.push(h);
+      const records = rows.map(row => {
+        const record = {};
+        allHeaders.forEach((h, idx) => {
+          let value = Array.isArray(row) ? row[idx] : row?.[h];
+          if (h === "วันที่เริ่มงาน") value = toIsoDate(value);
+          if (NUMERIC.has(h)) value = cleanNumber(value);
+          record[h] = value ?? "";
+        });
+        record.__rowId = newRowId();
+        return record;
+      }).filter(r => allHeaders.some(h => String(r[h] ?? "").trim() !== ""));
+      return { headers: allHeaders, records };
+    }
+    function setDataset(payload, source) {
+      const rows = payload.rows ?? (payload.records ?? []).map(record => (payload.headers ?? Object.keys(record)).map(h => record[h]));
+      const headers = payload.headers ?? Object.keys(payload.records?.[0] ?? {});
+      state.nextRowId = 1;
+      state.selectedIds = new Set();
+      state.dirty = false;
+      const normalized = normalizeRecords(headers, rows);
+      state.headers = normalized.headers;
+      state.records = normalized.records;
+      state.source = source;
+      state.page = 1;
+      populateFilters();
+      applyFilters();
+      setStatus(`แหล่งข้อมูล: <strong>${escapeHtml(source)}</strong> | ${state.records.length.toLocaleString("th-TH")} แถว | ${state.headers.length} คอลัมน์`);
+      updateEditControls();
+    }
+    function setStatus(html) { $("sourceStatus").innerHTML = html; }
+    function logGas(message) {
+      const stamp = new Date().toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      $("gasLog").textContent = `[${stamp}] ${message}\n` + $("gasLog").textContent;
+    }
+
+    function populateFilters() {
+      const wrap = $("categoricalFilters");
+      wrap.innerHTML = "";
+      CATEGORICAL.forEach(key => {
+        const values = [...new Set(state.records.map(r => r[key]).filter(v => v !== "" && v != null))].sort((a,b) => String(a).localeCompare(String(b), "th"));
+        const field = document.createElement("div");
+        field.className = "field";
+        field.innerHTML = `<label>${escapeHtml(key)}</label><select id="filter-${key}" multiple>${values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("")}</select>`;
+        wrap.appendChild(field);
+      });
+      for (const key of ["globalSearch","idSearch","nameSearch", ...RANGE_INPUTS]) $(key).value = "";
+      addFilterListeners();
+    }
+    function addFilterListeners() {
+      const controls = ["globalSearch","idSearch","nameSearch", ...RANGE_INPUTS, ...CATEGORICAL.map(k => `filter-${k}`)];
+      controls.forEach(id => {
+        const el = $(id);
+        if (el && !el.dataset.bound) {
+          el.addEventListener("input", () => { state.page = 1; applyFilters(); });
+          el.addEventListener("change", () => { state.page = 1; applyFilters(); });
+          el.dataset.bound = "1";
+        }
+      });
+    }
+    function selectedValues(id) { return [...($(id)?.selectedOptions ?? [])].map(o => o.value); }
+    function inRange(value, minId, maxId) {
+      const min = $(minId).value === "" ? -Infinity : Number($(minId).value);
+      const max = $(maxId).value === "" ? Infinity : Number($(maxId).value);
+      return Number(value) >= min && Number(value) <= max;
+    }
+    function inDateRange(value) {
+      const t = Date.parse(String(value || ""));
+      if (!Number.isFinite(t)) return true;
+      const from = $("startFrom").value ? Date.parse($("startFrom").value) : -Infinity;
+      const to = $("startTo").value ? Date.parse($("startTo").value) : Infinity;
+      return t >= from && t <= to;
+    }
+    function applyFilters() {
+      const global = $("globalSearch").value.trim().toLowerCase();
+      const idTerm = $("idSearch").value.trim().toLowerCase();
+      const nameTerm = $("nameSearch").value.trim().toLowerCase();
+      let rows = state.records.filter(r => {
+        if (global && !state.headers.some(h => String(r[h] ?? "").toLowerCase().includes(global))) return false;
+        if (idTerm && !String(r["Nurse_ID"] ?? "").toLowerCase().includes(idTerm)) return false;
+        if (nameTerm && !String(r["ชื่อ-สกุล"] ?? "").toLowerCase().includes(nameTerm)) return false;
+        for (const key of CATEGORICAL) {
+          const selected = selectedValues(`filter-${key}`);
+          if (selected.length && !selected.includes(String(r[key] ?? ""))) return false;
+        }
+        return inRange(r["อายุ"], "ageMin", "ageMax")
+          && inRange(r["อายุงาน(ปี)"], "tenureMin", "tenureMax")
+          && inRange(r["FTE"], "fteMin", "fteMax")
+          && inRange(r["OT_ชม./เดือน"], "otMin", "otMax")
+          && inRange(r["วันลา/เดือน"], "leaveMin", "leaveMax")
+          && inRange(r["อบรม_วัน/เดือน"], "trainingMin", "trainingMax")
+          && inDateRange(r["วันที่เริ่มงาน"]);
+      });
+      rows = sortRows(rows);
+      state.filtered = rows;
+      renderAll();
+      updateEditControls();
+    }
+    function sortRows(rows) {
+      const key = state.sortKey;
+      const dir = state.sortDir === "asc" ? 1 : -1;
+      return [...rows].sort((a,b) => {
+        const av = NUMERIC.has(key) ? Number(a[key]) : String(a[key] ?? "");
+        const bv = NUMERIC.has(key) ? Number(b[key]) : String(b[key] ?? "");
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+      });
+    }
+    function ageBand(age) { age = Number(age); return age <= 29 ? "<=29 ปี" : age <= 39 ? "30-39 ปี" : age <= 49 ? "40-49 ปี" : age <= 54 ? "50-54 ปี" : "55 ปีขึ้นไป"; }
+    function tenureBand(y) { y = Number(y); return y < 1 ? "<1 ปี" : y <= 4 ? "1-4 ปี" : y <= 9 ? "5-9 ปี" : y <= 19 ? "10-19 ปี" : "20 ปีขึ้นไป"; }
+    function otBand(h) { h = Number(h); return h <= 10 ? "0-10 ชม." : h <= 20 ? "11-20 ชม." : h <= 30 ? "21-30 ชม." : ">30 ชม."; }
+    function fteBand(f) { f = Number(f); return Math.abs(f - 1) < 1e-9 ? "เต็มเวลา 1.0" : f >= .8 ? "บางเวลา 0.8-<1.0" : "บางเวลา <0.8"; }
+    function groupSummary(rows, key, derived) {
+      const map = new Map();
+      rows.forEach(r => {
+        const label = derived ? derived(r) : (r[key] || "ไม่ระบุ");
+        if (!map.has(label)) map.set(label, []);
+        map.get(label).push(r);
+      });
+      return [...map.entries()].map(([label, items]) => ({
+        label,
+        count: items.length,
+        fte: sum(items, "FTE"),
+        avgAge: avg(items, "อายุ"),
+        avgTenure: avg(items, "อายุงาน(ปี)"),
+        avgOt: avg(items, "OT_ชม./เดือน"),
+        avgLeave: avg(items, "วันลา/เดือน"),
+        pass: countWhere(items, r => r.Competency === "ผ่าน"),
+      })).sort((a,b) => b.count - a.count || String(a.label).localeCompare(String(b.label), "th"));
+    }
+    function departmentSummary(rows) {
+      return groupSummary(rows, "หน่วยงาน").map(g => {
+        const items = rows.filter(r => (r["หน่วยงาน"] || "ไม่ระบุ") === g.label);
+        const skillCounts = groupSummary(items, "ทักษะหลัก");
+        return {
+          dept: g.label, count: g.count, fte: g.fte, fteAvg: g.count ? g.fte / g.count : 0,
+          rn: countWhere(items, r => r["วิชาชีพ"] === "RN"), pn: countWhere(items, r => r["วิชาชีพ"] === "PN"),
+          avgAge: g.avgAge, avgTenure: g.avgTenure, otTotal: sum(items, "OT_ชม./เดือน"), avgOt: g.avgOt,
+          avgLeave: g.avgLeave, avgTraining: avg(items, "อบรม_วัน/เดือน"), compPass: g.pass,
+          compPending: g.count - g.pass, compRate: pct(g.pass, g.count),
+          age55: countWhere(items, r => Number(r["อายุ"]) >= 55), highOt: countWhere(items, r => Number(r["OT_ชม./เดือน"]) > 30),
+          highLeave: countWhere(items, r => Number(r["วันลา/เดือน"]) >= 3), lowFte: countWhere(items, r => Number(r["FTE"]) < 1),
+          topSkill: skillCounts[0]?.label ?? ""
+        };
+      });
+    }
+    function riskFlags(rows) {
+      const total = rows.length;
+      return [
+        ["อายุ 55 ปีขึ้นไป", "อายุ >= 55 ปี", countWhere(rows, r => Number(r["อายุ"]) >= 55), "จัดทำ succession plan และแผนถ่ายทอดความรู้รายหน่วยงาน"],
+        ["OT สูง", "OT > 30 ชม./เดือน", countWhere(rows, r => Number(r["OT_ชม./เดือน"]) > 30), "ทบทวน staffing mix ตารางเวร และเหตุของ OT ในหน่วยงานที่กระจุกตัว"],
+        ["วันลาสูง", "วันลา >= 3 วัน/เดือน", countWhere(rows, r => Number(r["วันลา/เดือน"]) >= 3), "ติดตามกำลังคนสำรองและผลกระทบต่อเวรปฏิบัติงาน"],
+        ["FTE ต่ำกว่าเต็มเวลา", "FTE < 1.0", countWhere(rows, r => Number(r["FTE"]) < 1), "แยกวิเคราะห์กำลังคนพร้อมลงเวรเต็มเวลาและช่องว่าง FTE"],
+        ["Competency ยังไม่ผ่าน", "Competency != ผ่าน", countWhere(rows, r => r["Competency"] !== "ผ่าน"), "กำหนดรอบประเมินและพี่เลี้ยงเฉพาะกลุ่ม"],
+        ["ไม่มีวันอบรมในเดือน", "อบรม_วัน/เดือน = 0", countWhere(rows, r => Number(r["อบรม_วัน/เดือน"]) === 0), "จัดสรรแผนอบรมแบบไม่กระทบเวรบริการ"],
+      ].map(r => ({ issue: r[0], criteria: r[1], count: r[2], pct: pct(r[2], total), action: r[3] }));
+    }
+    function riskByDept(rows) {
+      return departmentSummary(rows).map(d => ({...d, score: d.age55 + d.highOt + d.highLeave + d.compPending + d.lowFte}))
+        .sort((a,b) => b.score - a.score || b.count - a.count);
+    }
+    function quality(rows) {
+      const missing = rows.reduce((a,r) => a + REQUIRED_HEADERS.reduce((b,h) => b + ((r[h] === "" || r[h] == null) ? 1 : 0), 0), 0);
+      const ids = rows.map(r => r.Nurse_ID).filter(Boolean);
+      const names = rows.map(r => r["ชื่อ-สกุล"]).filter(Boolean);
+      const dupIds = ids.length - new Set(ids).size;
+      const nameCount = names.reduce((m,n) => (m[n] = (m[n] || 0) + 1, m), {});
+      const dupNameGroups = Object.values(nameCount).filter(v => v > 1).length;
+      const dupNameRows = names.filter(n => nameCount[n] > 1).length;
+      const dates = rows.map(r => Date.parse(r["วันที่เริ่มงาน"])).filter(Number.isFinite);
+      const future = countWhere(rows, r => Date.parse(r["วันที่เริ่มงาน"]) > CURRENT_DATE.getTime());
+      return [
+        ["จำนวนแถว", fmt(rows.length,0), "จำนวนหลังตัวกรอง"],
+        ["จำนวนคอลัมน์", fmt(state.headers.length,0), "คอลัมน์ที่แสดงใน raw table"],
+        ["ค่าว่างใน 18 คอลัมน์หลัก", fmt(missing,0), "นับเฉพาะ Nurse_Master schema"],
+        ["Nurse_ID ซ้ำ", fmt(dupIds,0), "ควรเป็น 0"],
+        ["ชื่อซ้ำเป็นกลุ่ม", fmt(dupNameGroups,0), "ชื่อไม่ควรใช้เป็น key หลัก"],
+        ["แถวที่ชื่อซ้ำ", fmt(dupNameRows,0), "ใช้ตรวจสอบข้อมูลซ้ำเชิงบุคคล"],
+        ["วันที่เริ่มงานอนาคต", fmt(future,0), "เทียบวันที่อ้างอิงในไฟล์"],
+        ["วันที่เริ่มงานแรกสุด", dates.length ? new Date(Math.min(...dates)).toISOString().slice(0,10) : "", "ช่วงข้อมูล"],
+        ["วันที่เริ่มงานล่าสุด", dates.length ? new Date(Math.max(...dates)).toISOString().slice(0,10) : "", "ช่วงข้อมูล"],
+      ];
+    }
+    function kpis(rows) {
+      const total = rows.length, fte = sum(rows, "FTE"), pass = countWhere(rows, r => r.Competency === "ผ่าน");
+      return [
+        ["จำนวนพยาบาล", fmt(total,0), "คน", "#0f8b8d"],
+        ["FTE รวม", fmt(fte,2), "FTE", "#2f80ed"],
+        ["FTE เฉลี่ย", fmt(total ? fte/total : 0,2), "ต่อคน", "#7c5cff"],
+        ["อายุเฉลี่ย", fmt(avg(rows,"อายุ"),1), "ปี", "#17a673"],
+        ["อายุงานเฉลี่ย", fmt(avg(rows,"อายุงาน(ปี)"),1), "ปี", "#f5b841"],
+        ["OT รวม", fmt(sum(rows,"OT_ชม./เดือน"),0), "ชม./เดือน", "#f26b5e"],
+        ["OT เฉลี่ย", fmt(avg(rows,"OT_ชม./เดือน"),1), "ชม./คน", "#e0527d"],
+        ["วันลาเฉลี่ย", fmt(avg(rows,"วันลา/เดือน"),1), "วัน/คน", "#32c7c9"],
+        ["อบรมเฉลี่ย", fmt(avg(rows,"อบรม_วัน/เดือน"),1), "วัน/คน", "#a3d977"],
+        ["RN / PN", `${fmt(countWhere(rows,r=>r["วิชาชีพ"]==="RN"),0)} / ${fmt(countWhere(rows,r=>r["วิชาชีพ"]==="PN"),0)}`, "คน", "#0b2545"],
+        ["ผ่าน Competency", fmtPct(pct(pass,total)), `${fmt(pass,0)} คน`, "#17a673"],
+        ["อายุ 55+", fmt(countWhere(rows,r=>Number(r["อายุ"])>=55),0), "คน", "#f5b841"],
+      ];
+    }
+    function renderAll() {
+      const rows = state.filtered;
+      const risk = riskFlags(rows);
+      $("filteredBadge").textContent = `${rows.length.toLocaleString("th-TH")} รายการ`;
+      $("fteBadge").textContent = `${fmt(sum(rows,"FTE"),2)} FTE`;
+      $("riskBadge").textContent = `${fmt(risk.reduce((a,r)=>a+r.count,0),0)} flags`;
+      $("deptCountBadge").textContent = `${departmentSummary(rows).length} หน่วยงาน`;
+      $("compRateBadge").textContent = fmtPct(pct(countWhere(rows,r=>r.Competency==="ผ่าน"), rows.length));
+      $("riskCountBadge").textContent = `${fmt(risk.reduce((a,r)=>a+r.count,0),0)} flags`;
+      $("rawCountBadge").textContent = `${rows.length.toLocaleString("th-TH")} แถว`;
+      renderKpis(rows);
+      renderInsights(rows);
+      renderMetrics(rows);
+      renderQuality(rows);
+      renderDepartment(rows);
+      renderCategories(rows);
+      renderRisk(rows);
+      renderRawTable();
+      drawCharts(rows);
+      if (window.lucide) window.lucide.createIcons();
+    }
+    function renderKpis(rows) {
+      $("kpiGrid").innerHTML = kpis(rows).map(k => `<div class="kpi" style="--accent:${k[3]}"><div class="label">${escapeHtml(k[0])}</div><div class="value">${escapeHtml(k[1])}</div><div class="sub">${escapeHtml(k[2])}</div></div>`).join("");
+    }
+    function renderInsights(rows) {
+      const total = rows.length, depts = departmentSummary(rows), risks = riskFlags(rows);
+      const highestRisk = riskByDept(rows)[0];
+      const topDept = depts[0];
+      const noComp = countWhere(rows, r => r.Competency !== "ผ่าน");
+      const highOt = countWhere(rows, r => Number(r["OT_ชม./เดือน"]) > 30);
+      const items = [
+        ["ภาพรวมกำลังคน", `มี ${fmt(total,0)} คน รวม ${fmt(sum(rows,"FTE"),2)} FTE หน่วยงานใหญ่สุดคือ ${topDept?.dept ?? "-"} (${fmt(topDept?.count ?? 0,0)} คน)`, "#0f8b8d"],
+        ["ภาระงาน", `OT รวม ${fmt(sum(rows,"OT_ชม./เดือน"),0)} ชม./เดือน และมี OT > 30 ชม. ${fmt(highOt,0)} คน`, "#f26b5e"],
+        ["คุณภาพและความเสี่ยง", `รอประเมิน/ยังไม่ผ่าน Competency ${fmt(noComp,0)} คน จุดเสี่ยงรวมสูงสุดคือ ${highestRisk?.dept ?? "-"}`, "#7c5cff"],
+      ];
+      $("insights").innerHTML = items.map(i => `<div class="insight" style="--accent:${i[2]}"><strong>${escapeHtml(i[0])}</strong><span>${escapeHtml(i[1])}</span></div>`).join("");
+    }
+    function renderTable(id, headers, rows, numeric = []) {
+      const numericSet = new Set(numeric);
+      $(id).innerHTML = `<thead><tr>${headers.map(h => `<th class="${numericSet.has(h) ? "num" : ""}" data-sort="${escapeHtml(h)}">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.map(row => `<tr>${headers.map(h => `<td class="${numericSet.has(h) ? "num" : ""}">${escapeHtml(row[h] ?? "")}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    }
+    function renderMetrics(rows) {
+      const total = rows.length, pass = countWhere(rows,r=>r.Competency==="ผ่าน"), rn = countWhere(rows,r=>r["วิชาชีพ"]==="RN");
+      const metricRows = [
+        ["กำลังคน","จำนวนพยาบาลทั้งหมด",fmt(total,0),"คน","นับ Nurse_ID ในชุดข้อมูลที่ผ่านตัวกรอง"],
+        ["กำลังคน","FTE รวม",fmt(sum(rows,"FTE"),2),"FTE","รวมกำลังคนเทียบเต็มเวลา"],
+        ["กำลังคน","FTE เฉลี่ยต่อคน",fmt(total ? sum(rows,"FTE")/total : 0,2),"FTE/คน","ค่าเฉลี่ย FTE"],
+        ["สถานะ","กำลังคนสถานะปฏิบัติงาน",fmt(countWhere(rows,r=>r["สถานะ"]==="ปฏิบัติงาน"),0),"คน","เทียบกับสถานะทั้งหมด"],
+        ["โครงสร้างอายุ","อายุเฉลี่ย",fmt(avg(rows,"อายุ"),1),"ปี","ค่าเฉลี่ยอายุ"],
+        ["ประสบการณ์","อายุงานเฉลี่ย",fmt(avg(rows,"อายุงาน(ปี)"),1),"ปี","ค่าเฉลี่ยอายุงาน"],
+        ["ภาระงาน","OT รวมต่อเดือน",fmt(sum(rows,"OT_ชม./เดือน"),0),"ชม./เดือน","รวม OT ทุกคน"],
+        ["ภาระงาน","OT เฉลี่ยต่อคน",fmt(avg(rows,"OT_ชม./เดือน"),1),"ชม./คน/เดือน","ความตึงตัวของกำลังคน"],
+        ["ภาระงาน","วันลาเฉลี่ย",fmt(avg(rows,"วันลา/เดือน"),1),"วัน/คน/เดือน","ค่าเฉลี่ยวันลา"],
+        ["พัฒนา/อบรม","วันอบรมเฉลี่ย",fmt(avg(rows,"อบรม_วัน/เดือน"),1),"วัน/คน/เดือน","ค่าเฉลี่ยวันอบรม"],
+        ["วิชาชีพ","RN",fmt(rn,0),"คน",fmtPct(pct(rn,total))],
+        ["วิชาชีพ","PN",fmt(total-rn,0),"คน",fmtPct(pct(total-rn,total))],
+        ["คุณภาพ","ผ่าน Competency",fmt(pass,0),"คน",fmtPct(pct(pass,total))],
+      ].map(r => ({หมวด:r[0], ตัวชี้วัด:r[1], ค่า:r[2], หน่วย:r[3], คำอธิบาย:r[4]}));
+      renderTable("metricsTable", ["หมวด","ตัวชี้วัด","ค่า","หน่วย","คำอธิบาย"], metricRows, ["ค่า"]);
+    }
+    function renderQuality(rows) {
+      renderTable("qualityTable", ["รายการตรวจ","ค่า","คำอธิบาย"], quality(rows).map(r => ({รายการตรวจ:r[0], ค่า:r[1], คำอธิบาย:r[2]})), ["ค่า"]);
+    }
+    function renderDepartment(rows) {
+      const tableRows = departmentSummary(rows).map(d => ({
+        หน่วยงาน:d.dept, จำนวน:fmt(d.count,0), FTEรวม:fmt(d.fte,2), FTEเฉลี่ย:fmt(d.fteAvg,2), RN:fmt(d.rn,0), PN:fmt(d.pn,0),
+        อายุเฉลี่ย:fmt(d.avgAge,1), อายุงานเฉลี่ย:fmt(d.avgTenure,1), OTรวม:fmt(d.otTotal,0), OTเฉลี่ย:fmt(d.avgOt,1),
+        วันลาเฉลี่ย:fmt(d.avgLeave,1), อบรมเฉลี่ย:fmt(d.avgTraining,1), ผ่านCompetency:fmt(d.compPass,0),
+        รอประเมิน:fmt(d.compPending,0), "ผ่านComp(%)":fmtPct(d.compRate), อายุ55ขึ้นไป:fmt(d.age55,0), OTมากกว่า30:fmt(d.highOt,0),
+        วันลา3ขึ้นไป:fmt(d.highLeave,0), FTEต่ำกว่า1:fmt(d.lowFte,0), ทักษะหลักเด่น:d.topSkill
+      }));
+      renderTable("departmentTable", ["หน่วยงาน","จำนวน","FTEรวม","FTEเฉลี่ย","RN","PN","อายุเฉลี่ย","อายุงานเฉลี่ย","OTรวม","OTเฉลี่ย","วันลาเฉลี่ย","อบรมเฉลี่ย","ผ่านCompetency","รอประเมิน","ผ่านComp(%)","อายุ55ขึ้นไป","OTมากกว่า30","วันลา3ขึ้นไป","FTEต่ำกว่า1","ทักษะหลักเด่น"], tableRows, ["จำนวน","FTEรวม","FTEเฉลี่ย","RN","PN","อายุเฉลี่ย","อายุงานเฉลี่ย","OTรวม","OTเฉลี่ย","วันลาเฉลี่ย","อบรมเฉลี่ย","ผ่านCompetency","รอประเมิน","ผ่านComp(%)","อายุ55ขึ้นไป","OTมากกว่า30","วันลา3ขึ้นไป","FTEต่ำกว่า1"]);
+    }
+    function renderCategories(rows) {
+      const specs = [["เพศ","เพศ"],["ตำแหน่ง","ตำแหน่ง"],["ประเภทการจ้าง","ประเภทการจ้าง"],["ทักษะหลัก","ทักษะหลัก"],["วิชาชีพ","วิชาชีพ"],["สถานะ","สถานะ"],["ใบรับรอง","ใบรับรอง"],["Competency","Competency"],["Age_Band","ช่วงอายุ", r=>ageBand(r["อายุ"])],["Tenure_Band","ช่วงอายุงาน", r=>tenureBand(r["อายุงาน(ปี)"])],["OT_Band","ช่วง OT", r=>otBand(r["OT_ชม./เดือน"])],["FTE_Band","ช่วง FTE", r=>fteBand(r["FTE"])]];
+      const out = [];
+      specs.forEach(([key, label, fn]) => groupSummary(rows, key, fn).forEach(g => out.push({
+        มิติ: label, กลุ่ม: g.label, จำนวน: fmt(g.count,0), ร้อยละ: fmtPct(pct(g.count, rows.length)), FTE: fmt(g.fte,2),
+        อายุเฉลี่ย: fmt(g.avgAge,1), อายุงานเฉลี่ย: fmt(g.avgTenure,1), OTเฉลี่ย: fmt(g.avgOt,1), วันลาเฉลี่ย: fmt(g.avgLeave,1), ผ่านCompetency: fmt(g.pass,0), "ผ่านComp(%)": fmtPct(pct(g.pass,g.count))
+      })));
+      renderTable("categoryTable", ["มิติ","กลุ่ม","จำนวน","ร้อยละ","FTE","อายุเฉลี่ย","อายุงานเฉลี่ย","OTเฉลี่ย","วันลาเฉลี่ย","ผ่านCompetency","ผ่านComp(%)"], out, ["จำนวน","ร้อยละ","FTE","อายุเฉลี่ย","อายุงานเฉลี่ย","OTเฉลี่ย","วันลาเฉลี่ย","ผ่านCompetency","ผ่านComp(%)"]);
+    }
+    function renderRisk(rows) {
+      renderTable("riskFlagsTable", ["ประเด็น","เกณฑ์","จำนวน","ร้อยละ","ข้อเสนอเชิงบริหาร"], riskFlags(rows).map(r => ({ประเด็น:r.issue, เกณฑ์:r.criteria, จำนวน:fmt(r.count,0), ร้อยละ:fmtPct(r.pct), ข้อเสนอเชิงบริหาร:r.action})), ["จำนวน","ร้อยละ"]);
+      renderTable("riskDeptTable", ["หน่วยงาน","จำนวน","อายุ55ขึ้นไป","OTมากกว่า30","วันลา3ขึ้นไป","Competencyยังไม่ผ่าน","FTEต่ำกว่า1","คะแนนความเสี่ยงรวม"], riskByDept(rows).map(r => ({หน่วยงาน:r.dept, จำนวน:fmt(r.count,0), อายุ55ขึ้นไป:fmt(r.age55,0), OTมากกว่า30:fmt(r.highOt,0), วันลา3ขึ้นไป:fmt(r.highLeave,0), Competencyยังไม่ผ่าน:fmt(r.compPending,0), FTEต่ำกว่า1:fmt(r.lowFte,0), คะแนนความเสี่ยงรวม:fmt(r.score,0)})), ["จำนวน","อายุ55ขึ้นไป","OTมากกว่า30","วันลา3ขึ้นไป","Competencyยังไม่ผ่าน","FTEต่ำกว่า1","คะแนนความเสี่ยงรวม"]);
+    }
+    function setDirty(message = "มีการแก้ไขที่ยังไม่ส่งไป Google Sheet") {
+      state.dirty = true;
+      $("editStatus").textContent = message;
+      updateEditControls();
+    }
+    function updateEditControls() {
+      const editBtn = $("editModeBtn");
+      if (!editBtn) return;
+      editBtn.classList.toggle("accent", state.editMode);
+      editBtn.classList.toggle("primary", !state.editMode);
+      editBtn.querySelector("span").textContent = state.editMode ? "ปิดโหมดแก้ไข" : "แก้ไขข้อมูล";
+      $("addRowBtn").disabled = !state.editMode;
+      $("deleteRowsBtn").disabled = !state.editMode || state.selectedIds.size === 0;
+      $("saveEditsBtn").disabled = !state.dirty;
+      if (!state.dirty) $("editStatus").textContent = state.editMode ? "กำลังแก้ไข: คลิก cell แล้วพิมพ์ได้เลย" : "โหมดอ่านอย่างเดียว";
+    }
+    function toggleEditMode() {
+      state.editMode = !state.editMode;
+      state.selectedIds = new Set();
+      renderRawTable();
+      updateEditControls();
+      if (window.lucide) window.lucide.createIcons();
+    }
+    function nextNurseId() {
+      const nums = state.records.map(r => String(r.Nurse_ID || "").match(/^N(\d+)$/i)).filter(Boolean).map(m => Number(m[1]));
+      const next = nums.length ? Math.max(...nums) + 1 : state.records.length + 1;
+      return `N${String(next).padStart(4, "0")}`;
+    }
+    function addRow() {
+      if (!state.editMode) return;
+      const record = {};
+      state.headers.forEach(h => record[h] = NUMERIC.has(h) ? 0 : "");
+      record.Nurse_ID = nextNurseId();
+      record.FTE = 1;
+      record.__rowId = newRowId();
+      state.records.push(record);
+      state.selectedIds = new Set([record.__rowId]);
+      setDirty(`เพิ่มแถวใหม่ ${record.Nurse_ID} แล้ว`);
+      applyFilters();
+    }
+    function deleteSelectedRows() {
+      if (!state.editMode || state.selectedIds.size === 0) return;
+      const count = state.selectedIds.size;
+      if (!confirm(`ลบ ${count.toLocaleString("th-TH")} แถวที่เลือก?`)) return;
+      state.records = state.records.filter(r => !state.selectedIds.has(r.__rowId));
+      state.selectedIds = new Set();
+      setDirty(`ลบ ${count.toLocaleString("th-TH")} แถวแล้ว`);
+      applyFilters();
+    }
+    function commitCellEdit(cell) {
+      const rowId = cell.dataset.rowId;
+      const key = state.headers[Number(cell.dataset.colIndex)];
+      const record = findRecordById(rowId);
+      if (!record || !key) return;
+      const oldValue = record[key];
+      const newValue = coerceCellValue(key, cell.textContent);
+      if (String(oldValue ?? "") === String(newValue ?? "")) {
+        cell.textContent = oldValue ?? "";
+        return;
+      }
+      record[key] = newValue;
+      cell.textContent = newValue;
+      setDirty(`แก้ไข ${key} ของ ${record.Nurse_ID || rowId} แล้ว`);
+      applyFilters();
+    }
+    function renderRawTable() {
+      const pageSize = state.pageSize === "all" ? state.filtered.length || 1 : Number(state.pageSize);
+      const pages = Math.max(1, Math.ceil(state.filtered.length / pageSize));
+      state.page = Math.min(state.page, pages);
+      const start = state.pageSize === "all" ? 0 : (state.page - 1) * pageSize;
+      const rows = state.filtered.slice(start, state.pageSize === "all" ? state.filtered.length : start + pageSize);
+      const editable = state.editMode ? "contenteditable=\"true\"" : "";
+      const body = rows.map(r => {
+        const selected = state.selectedIds.has(r.__rowId);
+        return `<tr class="${selected ? "row-selected" : ""}" data-row-id="${escapeHtml(r.__rowId)}"><td class="row-select"><input type="checkbox" class="row-check" data-row-id="${escapeHtml(r.__rowId)}" ${selected ? "checked" : ""} ${state.editMode ? "" : "disabled"} /></td>${state.headers.map((h, idx) => `<td class="${NUMERIC.has(h) ? "num" : ""} ${state.editMode ? "editable-cell" : ""}" data-row-id="${escapeHtml(r.__rowId)}" data-col-index="${idx}" ${editable}>${escapeHtml(r[h])}</td>`).join("")}</tr>`;
+      }).join("");
+      $("rawTable").innerHTML = `<thead><tr><th class="row-select"><input type="checkbox" id="selectAllRows" ${state.editMode ? "" : "disabled"} /></th>${state.headers.map(h => `<th class="${NUMERIC.has(h) ? "num" : ""}" data-raw-sort="${escapeHtml(h)}">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${body}</tbody>`;
+      $("pageInfo").textContent = state.filtered.length ? `${(start+1).toLocaleString("th-TH")}-${(start+rows.length).toLocaleString("th-TH")} จาก ${state.filtered.length.toLocaleString("th-TH")} แถว` : "0 แถว";
+      $("prevPage").disabled = state.page <= 1 || state.pageSize === "all";
+      $("nextPage").disabled = state.page >= pages || state.pageSize === "all";
+      $("selectAllRows")?.addEventListener("change", e => {
+        rows.forEach(r => e.target.checked ? state.selectedIds.add(r.__rowId) : state.selectedIds.delete(r.__rowId));
+        renderRawTable();
+        updateEditControls();
+      });
+      document.querySelectorAll(".row-check").forEach(cb => cb.addEventListener("change", e => {
+        e.target.checked ? state.selectedIds.add(e.target.dataset.rowId) : state.selectedIds.delete(e.target.dataset.rowId);
+        renderRawTable();
+        updateEditControls();
+      }));
+      document.querySelectorAll("#rawTable td.editable-cell").forEach(td => {
+        td.addEventListener("blur", () => commitCellEdit(td));
+        td.addEventListener("keydown", e => {
+          if (e.key === "Enter") { e.preventDefault(); td.blur(); }
+          if (e.key === "Escape") { e.preventDefault(); const rec = findRecordById(td.dataset.rowId); td.textContent = rec?.[state.headers[Number(td.dataset.colIndex)]] ?? ""; td.blur(); }
+        });
+      });
+      document.querySelectorAll("[data-raw-sort]").forEach(th => th.addEventListener("click", () => {
+        const key = th.dataset.rawSort;
+        state.sortDir = state.sortKey === key && state.sortDir === "asc" ? "desc" : "asc";
+        state.sortKey = key;
+        applyFilters();
+      }));
+      updateEditControls();
+    }
+    function setupCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, rect.width, rect.height);
+      return { ctx, width: rect.width, height: rect.height };
+    }
+    function drawBars(canvasId, items, labelKey, valueKey) {
+      const canvas = $(canvasId); if (!canvas) return;
+      const { ctx, width, height } = setupCanvas(canvas);
+      const pad = { l: 46, r: 18, t: 16, b: 56 };
+      const max = Math.max(...items.map(i => i[valueKey]), 1);
+      const barW = Math.max(12, (width - pad.l - pad.r) / Math.max(items.length, 1) - 8);
+      ctx.font = "12px Arial"; ctx.fillStyle = "#102033";
+      items.forEach((item, i) => {
+        const x = pad.l + i * ((width - pad.l - pad.r) / items.length) + 4;
+        const h = (height - pad.t - pad.b) * item[valueKey] / max;
+        const y = height - pad.b - h;
+        ctx.fillStyle = PALETTE[i % PALETTE.length];
+        ctx.fillRect(x, y, barW, h);
+        ctx.fillStyle = "#102033"; ctx.textAlign = "center";
+        ctx.fillText(String(item[valueKey]), x + barW / 2, y - 5);
+        ctx.save(); ctx.translate(x + barW / 2, height - pad.b + 12); ctx.rotate(-Math.PI/5);
+        ctx.fillStyle = "#5f6f83"; ctx.fillText(String(item[labelKey]).slice(0, 16), 0, 0); ctx.restore();
+      });
+      ctx.strokeStyle = "#d9e2ec"; ctx.beginPath(); ctx.moveTo(pad.l, height - pad.b); ctx.lineTo(width - pad.r, height - pad.b); ctx.stroke();
+    }
+    function drawHorizontal(canvasId, items, labelKey, valueKey) {
+      const canvas = $(canvasId); if (!canvas) return;
+      const { ctx, width, height } = setupCanvas(canvas);
+      const pad = { l: 118, r: 32, t: 16, b: 20 };
+      const max = Math.max(...items.map(i => i[valueKey]), 1);
+      const rowH = (height - pad.t - pad.b) / Math.max(items.length, 1);
+      ctx.font = "12px Arial"; ctx.textBaseline = "middle";
+      items.forEach((item, i) => {
+        const y = pad.t + rowH * i + rowH / 2;
+        const w = (width - pad.l - pad.r) * item[valueKey] / max;
+        ctx.fillStyle = "#5f6f83"; ctx.textAlign = "right"; ctx.fillText(item[labelKey], pad.l - 8, y);
+        ctx.fillStyle = PALETTE[(i + 2) % PALETTE.length]; ctx.fillRect(pad.l, y - rowH * .28, w, rowH * .56);
+        ctx.fillStyle = "#102033"; ctx.textAlign = "left"; ctx.fillText(String(item[valueKey]), pad.l + w + 6, y);
+      });
+    }
+    function drawDonut(canvasId, segments) {
+      const canvas = $(canvasId); if (!canvas) return;
+      const { ctx, width, height } = setupCanvas(canvas);
+      const total = segments.reduce((a,s)=>a+s.value,0) || 1;
+      const cx = width/2, cy = height/2 - 10, r = Math.min(width, height) * .30;
+      let start = -Math.PI/2;
+      segments.forEach((s, i) => {
+        const end = start + Math.PI * 2 * s.value / total;
+        ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, r, start, end); ctx.closePath();
+        ctx.fillStyle = s.color || PALETTE[i]; ctx.fill(); start = end;
+      });
+      ctx.globalCompositeOperation = "destination-out"; ctx.beginPath(); ctx.arc(cx, cy, r * .58, 0, Math.PI*2); ctx.fill(); ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = "#0b2545"; ctx.font = "700 23px Arial"; ctx.textAlign = "center"; ctx.fillText(fmtPct(pct(segments[0]?.value || 0,total)), cx, cy + 8);
+      ctx.font = "12px Arial"; ctx.fillStyle = "#5f6f83";
+      segments.forEach((s, i) => {
+        ctx.fillStyle = s.color || PALETTE[i]; ctx.fillRect(22, height - 46 + i*20, 10, 10);
+        ctx.fillStyle = "#5f6f83"; ctx.textAlign = "left"; ctx.fillText(`${s.label}: ${fmt(s.value,0)}`, 38, height - 37 + i*20);
+      });
+    }
+    function drawCharts(rows) {
+      const dept = departmentSummary(rows);
+      drawBars("deptChart", dept, "dept", "count");
+      drawDonut("competencyChart", [{label:"ผ่าน", value:countWhere(rows,r=>r.Competency==="ผ่าน"), color:"#17a673"}, {label:"รอประเมิน", value:countWhere(rows,r=>r.Competency!=="ผ่าน"), color:"#f26b5e"}]);
+      drawHorizontal("riskChart", riskFlags(rows), "issue", "count");
+    }
+    function summaryWorkbookArrays(rows) {
+      const dept = departmentSummary(rows).map(d => [d.dept,d.count,d.fte,d.fteAvg,d.rn,d.pn,d.avgAge,d.avgTenure,d.otTotal,d.avgOt,d.avgLeave,d.avgTraining,d.compPass,d.compPending,d.compRate,d.age55,d.highOt,d.highLeave,d.lowFte,d.topSkill]);
+      const catRows = [];
+      const specs = [["เพศ","เพศ"],["ตำแหน่ง","ตำแหน่ง"],["ประเภทการจ้าง","ประเภทการจ้าง"],["ทักษะหลัก","ทักษะหลัก"],["วิชาชีพ","วิชาชีพ"],["สถานะ","สถานะ"],["ใบรับรอง","ใบรับรอง"],["Competency","Competency"],["Age_Band","ช่วงอายุ", r=>ageBand(r["อายุ"])],["Tenure_Band","ช่วงอายุงาน", r=>tenureBand(r["อายุงาน(ปี)"])],["OT_Band","ช่วง OT", r=>otBand(r["OT_ชม./เดือน"])],["FTE_Band","ช่วง FTE", r=>fteBand(r["FTE"])]];
+      specs.forEach(([key,label,fn]) => groupSummary(rows,key,fn).forEach(g => catRows.push([label,g.label,g.count,pct(g.count,rows.length),g.fte,g.avgAge,g.avgTenure,g.avgOt,g.avgLeave,g.pass,pct(g.pass,g.count)])));
+      return {
+        raw: [state.headers, ...rows.map(r => state.headers.map(h => r[h]))],
+        dept: [["หน่วยงาน","จำนวน","FTEรวม","FTEเฉลี่ย","RN","PN","อายุเฉลี่ย","อายุงานเฉลี่ย","OTรวม","OTเฉลี่ย","วันลาเฉลี่ย","อบรมเฉลี่ย","ผ่านCompetency","รอประเมิน","ผ่านComp(%)","อายุ55ขึ้นไป","OTมากกว่า30","วันลา3ขึ้นไป","FTEต่ำกว่า1","ทักษะหลักเด่น"], ...dept],
+        cats: [["มิติ","กลุ่ม","จำนวน","ร้อยละ","FTE","อายุเฉลี่ย","อายุงานเฉลี่ย","OTเฉลี่ย","วันลาเฉลี่ย","ผ่านCompetency","ผ่านComp(%)"], ...catRows],
+        risks: [["ประเด็น","เกณฑ์","จำนวน","ร้อยละ","ข้อเสนอเชิงบริหาร"], ...riskFlags(rows).map(r => [r.issue,r.criteria,r.count,r.pct,r.action])],
+        quality: [["รายการตรวจ","ค่า","คำอธิบาย"], ...quality(rows)],
+      };
+    }
+    function downloadBlob(content, type, filename) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+    function stamp() { return new Date().toISOString().replace(/[:T]/g,"-").slice(0,19); }
+    function exportCsv() {
+      const csv = [state.headers, ...state.filtered.map(r => state.headers.map(h => r[h]))]
+        .map(row => row.map(v => `"${String(v ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
+      downloadBlob("\ufeff" + csv, "text/csv;charset=utf-8", `Nurse_Master_Filtered_${stamp()}.csv`);
+    }
+    function exportJson() {
+      downloadBlob(JSON.stringify({ source: state.source, exportedAt: new Date().toISOString(), headers: state.headers, records: state.filtered.map(cleanRecord) }, null, 2), "application/json;charset=utf-8", `Nurse_Master_Filtered_${stamp()}.json`);
+    }
+    function exportXlsx() {
+      if (!window.XLSX) { exportCsv(); return; }
+      const wb = XLSX.utils.book_new();
+      const arrays = summaryWorkbookArrays(state.filtered);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arrays.raw), "Nurse_Master_Filtered");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arrays.dept), "Department_Summary");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arrays.cats), "Category_Summaries");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arrays.risks), "Risk_and_Actions");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(arrays.quality), "Data_Profile");
+      XLSX.writeFile(wb, `Nurse_Master_Dashboard_Export_${stamp()}.xlsx`);
+    }
+    async function importExcel(file) {
+      if (!window.XLSX) { alert("ไม่พบ XLSX library สำหรับนำเข้า Excel"); return; }
+      const buffer = await file.arrayBuffer();
+      const book = XLSX.read(buffer, { type: "array", cellDates: true });
+      const sheetName = book.SheetNames.find(s => s.trim() === "Nurse_Master") || book.SheetNames[0];
+      const aoa = XLSX.utils.sheet_to_json(book.Sheets[sheetName], { header: 1, defval: null, raw: true });
+      const headers = (aoa[0] || []).map(h => String(h || "").trim());
+      const rows = aoa.slice(1).filter(row => row.some(v => v != null && String(v).trim() !== ""));
+      setDataset({ headers, rows }, `${file.name} / ${sheetName}`);
+    }
+    function saveGasConfig() {
+      const config = { url: $("gasUrl").value.trim(), sheet: $("gasSheet").value.trim(), token: $("gasToken").value };
+      localStorage.setItem("nurseDashboardGas", JSON.stringify(config));
+      $("gasStatus").textContent = config.url ? "บันทึก URL แล้ว" : "ยังไม่เชื่อมต่อ";
+      logGas(config.url ? "Saved GAS endpoint." : "Cleared GAS endpoint.");
+    }
+    function loadGasConfig() {
+      try {
+        const c = JSON.parse(localStorage.getItem("nurseDashboardGas") || "{}");
+        $("gasUrl").value = c.url || DEFAULT_GAS_URL;
+        if (c.sheet) $("gasSheet").value = c.sheet;
+        if (c.token) $("gasToken").value = c.token;
+        $("gasStatus").textContent = $("gasUrl").value ? "พร้อมเชื่อมต่อ" : "ยังไม่เชื่อมต่อ";
+      } catch {}
+    }
+    function gasUrlWith(params) {
+      const base = $("gasUrl").value.trim();
+      if (!base) throw new Error("Missing GAS URL");
+      const u = new URL(base);
+      Object.entries(params).forEach(([k,v]) => u.searchParams.set(k,v));
+      return u.toString();
+    }
+    function loadFromGas() {
+      const callback = `nurseGasCallback_${Date.now()}`;
+      const script = document.createElement("script");
+      window[callback] = (payload) => {
+        delete window[callback]; script.remove();
+        if (!payload.ok) { logGas(`Read failed: ${payload.error || "unknown"}`); return; }
+        setDataset({ headers: payload.headers, rows: payload.rows }, `Google Sheet / ${payload.sheet}`);
+        $("gasStatus").textContent = "โหลดข้อมูลแล้ว";
+        logGas(`Loaded ${payload.rows.length} rows from ${payload.sheet}.`);
+      };
+      try {
+        script.src = gasUrlWith({ action: "read", sheet: $("gasSheet").value.trim() || "Nurse_Master", token: $("gasToken").value, callback });
+        script.onerror = () => logGas("Read failed.");
+        document.body.appendChild(script);
+        logGas("Loading from Google Sheet...");
+      } catch (error) { logGas(error.message); }
+    }
+    function pushToGas() {
+      try {
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = $("gasUrl").value.trim();
+        form.target = "gasPostFrame";
+        form.style.display = "none";
+        const payload = JSON.stringify({ headers: state.headers, rows: state.records.map(r => state.headers.map(h => r[h])) });
+        [["action","replace"],["sheet",$("gasSheet").value.trim() || "Nurse_Master"],["token",$("gasToken").value],["payload",payload]].forEach(([name,value]) => {
+          const input = document.createElement("input"); input.name = name; input.value = value; form.appendChild(input);
+        });
+        document.body.appendChild(form); form.submit(); setTimeout(() => form.remove(), 1000);
+        state.dirty = false;
+        updateEditControls();
+        $("gasStatus").textContent = "ส่งข้อมูลแล้ว";
+        logGas(`Posted ${state.records.length} rows to Google Sheet.`);
+      } catch (error) { logGas(error.message); }
+    }
+    function bindEvents() {
+      $("importBtn").addEventListener("click", () => $("fileInput").click());
+      $("fileInput").addEventListener("change", e => e.target.files[0] && importExcel(e.target.files[0]));
+      $("exportXlsxBtn").addEventListener("click", exportXlsx);
+      $("exportCsvBtn").addEventListener("click", exportCsv);
+      $("exportJsonBtn").addEventListener("click", exportJson);
+      $("resetFiltersBtn").addEventListener("click", () => { populateFilters(); applyFilters(); });
+      $("pageSize").addEventListener("change", e => { state.pageSize = e.target.value === "all" ? "all" : Number(e.target.value); state.page = 1; renderRawTable(); if (window.lucide) window.lucide.createIcons(); });
+      $("editModeBtn").addEventListener("click", toggleEditMode);
+      $("addRowBtn").addEventListener("click", addRow);
+      $("deleteRowsBtn").addEventListener("click", deleteSelectedRows);
+      $("saveEditsBtn").addEventListener("click", () => { state.dirty = false; applyFilters(); $("editStatus").textContent = "Dashboard อัปเดตจากข้อมูลล่าสุดแล้ว"; updateEditControls(); });
+      $("prevPage").addEventListener("click", () => { state.page = Math.max(1, state.page - 1); renderRawTable(); });
+      $("nextPage").addEventListener("click", () => { state.page += 1; renderRawTable(); });
+      $("tabs").addEventListener("click", e => {
+        const btn = e.target.closest("[data-tab]"); if (!btn) return;
+        document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t === btn));
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `tab-${btn.dataset.tab}`));
+      });
+      $("saveGasBtn").addEventListener("click", saveGasConfig);
+      $("loadGasBtn").addEventListener("click", loadFromGas);
+      $("pushGasBtn").addEventListener("click", pushToGas);
+      window.addEventListener("resize", () => drawCharts(state.filtered));
+    }
+    bindEvents();
+    loadGasConfig();
+    setDataset(INITIAL_PAYLOAD, `${INITIAL_PAYLOAD.metadata.source_file.split(/[\\/]/).pop()} / ${INITIAL_PAYLOAD.metadata.sheet}`);
+    if (window.lucide) window.lucide.createIcons();
+  </script>
+</body>
+</html>
